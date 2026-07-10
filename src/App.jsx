@@ -28,12 +28,14 @@ const PageLoader = () => (
 );
 
 export default function App() {
+  const routerBasename = import.meta.env.DEV ? '/' : '/ai-interview-prep';
+
   return (
     <ThemeProvider>
       <AuthProvider>
         <InterviewProvider>
           <ResumeProvider>
-            <BrowserRouter>
+            <BrowserRouter basename={routerBasename}>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   {/* Public Route */}

@@ -105,12 +105,12 @@ export default function InterviewPage() {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-blue focus:bg-white dark:border-neutral-800 dark:bg-neutral-800/60 dark:focus:border-brand-blue dark:focus:bg-neutral-900"
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-blue focus:bg-white dark:border-neutral-800 dark:bg-neutral-800 dark:focus:border-brand-blue dark:focus:bg-neutral-900 text-slate-700 dark:text-slate-200"
               >
-                <option value="Frontend Engineer">Frontend Engineer</option>
-                <option value="Senior React Architect">Senior React Architect</option>
-                <option value="Software Engineer">Software Engineer</option>
-                <option value="Product Manager">Product Manager</option>
+                <option value="Frontend Engineer" className="bg-white dark:bg-neutral-900 text-slate-850 dark:text-slate-200">Frontend Engineer</option>
+                <option value="Senior React Architect" className="bg-white dark:bg-neutral-900 text-slate-850 dark:text-slate-200">Senior React Architect</option>
+                <option value="Software Engineer" className="bg-white dark:bg-neutral-900 text-slate-850 dark:text-slate-200">Software Engineer</option>
+                <option value="Product Manager" className="bg-white dark:bg-neutral-900 text-slate-850 dark:text-slate-200">Product Manager</option>
               </select>
             </div>
 

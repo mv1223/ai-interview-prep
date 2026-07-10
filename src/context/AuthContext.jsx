@@ -33,7 +33,11 @@ export function AuthProvider({ children }) {
     setAuthModalOpen(false);
   };
 
-  const signup = (name, email, college, dob, age, phone) => {
+  const signup = (name, email, college, dob, age, phone, gender, avatarUrl) => {
+    const defaultAvatar = gender === 'Female'
+      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
+
     const mockUser = {
       name,
       email,
@@ -41,10 +45,11 @@ export function AuthProvider({ children }) {
       dob,
       age,
       phone,
+      gender,
       role: 'Frontend Developer Candidate',
-      company: 'Vercel',
+      company: 'Placement Prep',
       isPremium: true,
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      avatarUrl: avatarUrl || defaultAvatar,
     };
     setUser(mockUser);
     localStorage.setItem('user', JSON.stringify(mockUser));

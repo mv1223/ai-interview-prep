@@ -16,6 +16,9 @@ export default function AuthModal() {
   const [dob, setDob] = useState('');
   const [age, setAge] = useState('');
   const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [customAvatar, setCustomAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   // Mail service simulation states
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -65,7 +68,7 @@ export default function AuthModal() {
         setEmailSent(true);
         setTimeout(() => {
           setEmailSent(false);
-          signup(name, email, college, dob, age, phone);
+          signup(name, email, college, dob, age, phone, gender, customAvatar ? avatarUrl : '');
         }, 2200);
       }, 2000);
     } else {
@@ -182,7 +185,7 @@ export default function AuthModal() {
                         placeholder="Sarah Connor"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs outline-none transition-all focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 dark:border-neutral-800 dark:bg-neutral-800/50 dark:focus:border-brand-blue dark:focus:bg-neutral-900 dark:focus:ring-brand-blue/20"
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs outline-none transition-all focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 dark:border-neutral-800 dark:bg-neutral-800/50 dark:focus:border-brand-blue dark:focus:bg-neutral-900 dark:focus:ring-brand-blue/20 animate-none"
                       />
                     </div>
 
@@ -222,7 +225,7 @@ export default function AuthModal() {
                           readOnly
                           placeholder="--"
                           value={age}
-                          className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs outline-none dark:border-neutral-850 dark:bg-neutral-950 text-slate-500"
+                          className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-105 px-3.5 py-2 text-xs outline-none dark:border-neutral-850 dark:bg-neutral-950 text-slate-500"
                         />
                       </div>
                     </div>
@@ -240,6 +243,51 @@ export default function AuthModal() {
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs outline-none transition-all focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 dark:border-neutral-800 dark:bg-neutral-800/50 dark:focus:border-brand-blue dark:focus:bg-neutral-900 dark:focus:ring-brand-blue/20"
                       />
                     </div>
+
+                    {/* Gender select */}
+                    <div>
+                      <label className="block text-xxs font-bold uppercase tracking-wider text-slate-400 dark:text-neutral-500">
+                        Gender
+                      </label>
+                      <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-brand-blue focus:bg-white dark:border-neutral-800 dark:bg-neutral-805 dark:text-slate-200 dark:focus:bg-neutral-900 text-slate-700"
+                      >
+                        <option value="Male" className="bg-white dark:bg-neutral-850 text-slate-800 dark:text-slate-200">Male</option>
+                        <option value="Female" className="bg-white dark:bg-neutral-850 text-slate-800 dark:text-slate-200">Female</option>
+                      </select>
+                    </div>
+
+                    {/* Checkbox custom profile photo */}
+                    <div className="flex items-center gap-2 py-1">
+                      <input 
+                        type="checkbox" 
+                        id="customAvatar"
+                        checked={customAvatar}
+                        onChange={(e) => setCustomAvatar(e.target.checked)}
+                        className="rounded border-slate-300 text-brand-blue focus:ring-brand-blue/40"
+                      />
+                      <label htmlFor="customAvatar" className="text-xxs font-semibold text-slate-500 dark:text-neutral-450 cursor-pointer">
+                        Add a custom profile photo
+                      </label>
+                    </div>
+
+                    {/* Optional Custom profile link */}
+                    {customAvatar && (
+                      <div>
+                        <label className="block text-xxs font-bold uppercase tracking-wider text-slate-400 dark:text-neutral-500">
+                          Profile Photo URL
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://images.unsplash.com/photo-..."
+                          value={avatarUrl}
+                          onChange={(e) => setAvatarUrl(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs outline-none transition-all focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 dark:border-neutral-800 dark:bg-neutral-800/50 dark:focus:border-brand-blue dark:focus:bg-neutral-900 dark:focus:ring-brand-blue/20"
+                        />
+                      </div>
+                    )}
                   </>
                 )}
 

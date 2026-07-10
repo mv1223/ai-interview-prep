@@ -32,9 +32,9 @@ const MOCK_OPTIMIZATIONS = [
 
 export function ResumeProvider({ children }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [atsScore, setAtsScore] = useState(68); // Pre-seeded starting ATS score
-  const [fileName, setFileName] = useState('Sarah_Connor_Resume_Draft.pdf');
-  const [optimizations, setOptimizations] = useState(MOCK_OPTIMIZATIONS);
+  const [atsScore, setAtsScore] = useState(0);
+  const [fileName, setFileName] = useState(null);
+  const [optimizations, setOptimizations] = useState([]);
 
   const uploadResume = (file) => {
     setIsAnalyzing(true);

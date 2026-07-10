@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Premium theme gradients and shadows */
+  --shadow-premium: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-premium-dark: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.15);
+  --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.15);
+
+  /* Brand Colors */
+  --color-brand-blue: #3b82f6;
+  --color-brand-purple: #8b5cf6;
+  --color-brand-pink: #ec4899;
+  
+  --color-dark-bg: #09090b;
+  --color-dark-card: #131316;
+  --color-dark-border: #232329;
+  
+  --color-light-bg: #f8fafc;
+  --color-light-card: #ffffff;
+  --color-light-border: #e2e8f0;
+}
+
+/* Custom Base Styles */
+@layer base {
+  html, body {
+    @apply font-sans m-0 p-0 antialiased overflow-x-hidden;
+    font-size: 16px;
+    letter-spacing: -0.011em;
+  }
+
+  body {
+    @apply bg-light-bg text-slate-800 transition-colors duration-300;
+  }
+
+  body.dark {
+    @apply bg-dark-bg text-slate-200;
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full transition-colors;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-800;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-700;
+  }
+}
+
+/* Custom Utilities for Premium Glassmorphism & Effects */
+@layer utilities {
+  .glass-card {
+    @apply bg-white/75 backdrop-blur-md border border-slate-200/50 shadow-premium;
+  }
+  .dark .glass-card {
+    @apply bg-neutral-900/70 backdrop-blur-md border border-neutral-800/60 shadow-premium-dark;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-blue via-brand-purple to-brand-pink;
+  }
+
+  .glow-border {
+    @apply relative after:absolute after:inset-0 after:rounded-xl after:border after:border-transparent after:transition-all after:duration-500 after:content-[''] hover:after:border-brand-blue/30;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Code Editor Custom Styles */
+.custom-editor-textarea {
+  font-family: 'JetBrains Mono', monospace;
+  resize: none;
+  line-height: 1.5;
+}
+
+/* Recharts override custom style */
+.recharts-default-tooltip {
+  @apply !bg-white/95 !border-slate-200 !rounded-lg !shadow-premium !p-2 !backdrop-blur-sm;
+}
+.dark .recharts-default-tooltip {
+  @apply !bg-neutral-900/95 !border-neutral-800 !shadow-premium-dark;
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { 
   IoGridOutline, 
   IoMicOutline, 
@@ -9,11 +10,14 @@ import {
   IoSettingsOutline, 
   IoLogOutOutline,
   IoChevronBackOutline,
-  IoChevronForwardOutline
+  IoChevronForwardOutline,
+  IoSunnyOutline,
+  IoMoonOutline
 } from 'react-icons/io5';
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
@@ -55,6 +59,15 @@ export default function Sidebar() {
             </NavLink>
           );
         })}
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="flex w-full items-center gap-3.5 px-3 py-3 rounded-lg text-sm font-medium transition-all text-slate-500 hover:bg-slate-55 hover:text-slate-905 dark:text-neutral-400 dark:hover:bg-neutral-800/40 dark:hover:text-neutral-200 cursor-pointer text-left"
+        >
+          {isDark ? <IoSunnyOutline size={20} className="shrink-0 text-amber-500" /> : <IoMoonOutline size={20} className="shrink-0" />}
+          {!collapsed && <span>{isDark ? 'Light Mode' : 'Night Mode'}</span>}
+        </button>
       </nav>
 
       {/* Collapse button toggle */}

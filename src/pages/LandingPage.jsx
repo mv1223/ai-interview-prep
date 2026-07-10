@@ -10,7 +10,6 @@ import {
   IoGitBranchOutline, 
   IoBarChartOutline,
   IoArrowForwardOutline,
-  IoCheckmarkCircleSharp,
   IoSparklesOutline,
   IoChevronDownOutline,
   IoChevronUpOutline,
@@ -23,7 +22,6 @@ import {
 export default function LandingPage() {
   const { user, setAuthModalOpen, setAuthModalTab } = useAuth();
   const navigate = useNavigate();
-  const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'annual'
 
   // Interactive Live Chat Demo State
   const [chatOption, setChatOption] = useState(null);
@@ -467,121 +465,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 8. PRICING */}
-      <section id="pricing" className="py-20 bg-slate-50/50 dark:bg-neutral-900/30 border-y border-slate-200/50 dark:border-neutral-850">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl font-bold font-heading text-slate-900 dark:text-white">
-              Transparent, Value-First Pricing
-            </h2>
-            <p className="mt-2 text-slate-500 dark:text-neutral-450 text-sm">
-              Prepare for free, or upgrade to Pro to unlock unlimited coaching feedback.
-            </p>
 
-            {/* Billing Cycle Selector */}
-            <div className="mt-8 inline-flex items-center gap-1 rounded-full bg-slate-100 p-1 dark:bg-neutral-800">
-              <button
-                onClick={() => setBillingCycle('monthly')}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-                  billingCycle === 'monthly' ? 'bg-white text-slate-900 shadow-sm dark:bg-neutral-700 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-white'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBillingCycle('annual')}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-                  billingCycle === 'annual' ? 'bg-white text-slate-900 shadow-sm dark:bg-neutral-700 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-white'
-                }`}
-              >
-                Annual (20% Off)
-              </button>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto items-stretch">
-            {/* Free */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 dark:border-neutral-850 dark:bg-neutral-900 shadow-sm flex flex-col justify-between hover:border-slate-350 dark:hover:border-neutral-700 transition-colors">
-              <div>
-                <h3 className="text-lg font-bold font-heading text-slate-900 dark:text-white">Starter</h3>
-                <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">Perfect to test capabilities</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">$0</span>
-                  <span className="text-xs text-slate-450 ml-1">/ month</span>
-                </div>
-                <ul className="mt-8 space-y-3.5 text-xs sm:text-sm text-slate-650 dark:text-neutral-350">
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> 1 Mock Interview session / mo</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Basic interview questions</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> ATS resume check (score only)</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Standard dashboard templates</li>
-                </ul>
-              </div>
-              <button
-                onClick={handleCTA}
-                className="mt-8 w-full rounded-lg border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-55 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-350 dark:hover:bg-neutral-800 transition-all active:scale-[0.98] cursor-pointer"
-              >
-                Get Started Free
-              </button>
-            </div>
-
-            {/* Pro */}
-            <div className="rounded-2xl border-2 border-brand-blue bg-white p-8 dark:bg-neutral-900 shadow-premium relative flex flex-col justify-between hover:scale-[1.01] transition-all">
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-blue px-3 py-1 text-xxs font-extrabold uppercase tracking-wide text-white">
-                Most Popular
-              </span>
-              <div>
-                <h3 className="text-lg font-bold font-heading text-slate-900 dark:text-white">Pro</h3>
-                <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">For ambitious professionals</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-                    {billingCycle === 'monthly' ? '$19' : '$15'}
-                  </span>
-                  <span className="text-xs text-slate-400 ml-1">/ month</span>
-                </div>
-                <ul className="mt-8 space-y-3.5 text-xs sm:text-sm text-slate-650 dark:text-neutral-350">
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Unlimited Mock Interviews</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Custom Role & Company modes</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Integrated Coding compiler simulator</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Interactive Resume optimization diffs</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Full Interactive Roadmaps</li>
-                </ul>
-              </div>
-              <button
-                onClick={handleCTA}
-                className="mt-8 w-full rounded-lg bg-brand-blue py-3 text-sm font-semibold text-white hover:bg-blue-600 transition-all shadow-glow-blue active:scale-[0.98] cursor-pointer"
-              >
-                Go Pro Now
-              </button>
-            </div>
-
-            {/* Enterprise */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 dark:border-neutral-850 dark:bg-neutral-900 shadow-sm flex flex-col justify-between hover:border-slate-350 dark:hover:border-neutral-700 transition-colors">
-              <div>
-                <h3 className="text-lg font-bold font-heading text-slate-900 dark:text-white">Enterprise</h3>
-                <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">For university cohorts</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-                    {billingCycle === 'monthly' ? '$49' : '$39'}
-                  </span>
-                  <span className="text-xs text-slate-400 ml-1">/ month</span>
-                </div>
-                <ul className="mt-8 space-y-3.5 text-xs sm:text-sm text-slate-650 dark:text-neutral-350">
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Dedicated HR templates</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Live recruiter dashboards logs</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Cohort API analytics</li>
-                  <li className="flex items-center gap-2.5"><IoCheckmarkCircleSharp className="text-brand-blue shrink-0" /> Priority 24/7 dedicated support</li>
-                </ul>
-              </div>
-              <button
-                onClick={handleCTA}
-                className="mt-8 w-full rounded-lg border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-55 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-350 dark:hover:bg-neutral-800 transition-all active:scale-[0.98] cursor-pointer"
-              >
-                Contact Sales
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* 9. FAQ SECTION */}
       <section className="py-20 lg:py-28">

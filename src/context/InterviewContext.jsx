@@ -3,77 +3,12 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const InterviewContext = createContext();
 
-const MOCK_HISTORICAL_INTERVIEWS = [
-  {
-    id: 'int-1',
-    role: 'Frontend Engineer',
-    company: 'Google',
-    date: '2026-07-01',
-    duration: '45 mins',
-    difficulty: 'Hard',
-    scores: {
-      overall: 85,
-      communication: 90,
-      technical: 82,
-      problemSolving: 80,
-      behavioral: 88,
-    },
-    feedback: 'Excellent communication. Solved the React performance question efficiently, but could improve optimization explanation for virtualized lists.',
-  },
-  {
-    id: 'int-2',
-    role: 'Software Engineer',
-    company: 'Stripe',
-    date: '2026-07-04',
-    duration: '50 mins',
-    difficulty: 'Medium',
-    scores: {
-      overall: 92,
-      communication: 88,
-      technical: 95,
-      problemSolving: 94,
-      behavioral: 90,
-    },
-    feedback: 'Flawless execution of the API design. Handled errors and edge cases cleanly. Outstanding technical precision.',
-  },
-  {
-    id: 'int-3',
-    role: 'UI Architect',
-    company: 'Apple',
-    date: '2026-07-07',
-    duration: '40 mins',
-    difficulty: 'Hard',
-    scores: {
-      overall: 88,
-      communication: 92,
-      technical: 86,
-      problemSolving: 84,
-      behavioral: 95,
-    },
-    feedback: 'Highly design-oriented. Clean separation of concerns in CSS variables and Tailwind architecture. Behavioral answers aligned perfectly with Apple design standards.',
-  },
-  {
-    id: 'int-4',
-    role: 'Senior React Developer',
-    company: 'Meta',
-    date: '2026-07-09',
-    duration: '55 mins',
-    difficulty: 'Hard',
-    scores: {
-      overall: 78,
-      communication: 75,
-      technical: 80,
-      problemSolving: 78,
-      behavioral: 76,
-    },
-    feedback: 'Good coding speed in React concurrent features. Needs to structure behavioral responses using the STAR method more strictly to improve overall impact.',
-  }
-];
+
 
 export function InterviewProvider({ children }) {
   const [interviews, setInterviews] = useState(() => {
     const saved = localStorage.getItem('interviews');
-    return saved ? JSON.parse(saved) : MOCK_HISTORICAL_INTERVIEWS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [activeInterview, setActiveInterview] = useState(null);

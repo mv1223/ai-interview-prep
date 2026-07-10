@@ -73,11 +73,11 @@ export default function Dashboard() {
 
   // Recharts Radar Skill Aggregation
   const latestScores = interviews.length > 0 ? interviews[0].scores : {
-    overall: 80,
-    communication: 80,
-    technical: 80,
-    problemSolving: 80,
-    behavioral: 80
+    overall: 0,
+    communication: 0,
+    technical: 0,
+    problemSolving: 0,
+    behavioral: 0
   };
 
   const radarData = [

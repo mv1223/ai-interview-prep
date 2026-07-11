@@ -1,582 +1,367 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useResume } from '../context/ResumeContext';
+import { useToast } from '../context/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  IoArrowForwardOutline, 
-  IoArrowBackOutline,
-  IoSchoolOutline,
-  IoCodeSlashOutline,
-  IoServerOutline,
-  IoBriefcaseOutline,
-  IoCheckmarkCircleSharp,
-  IoCloudUploadOutline,
-  IoSparklesOutline,
-  IoShieldCheckmarkOutline
+import {
+  IoArrowForwardOutline, IoArrowBackOutline, IoCodeSlashOutline,
+  IoServerOutline, IoBriefcaseOutline, IoSparklesOutline,
+  IoSchoolOutline, IoCheckmarkCircleSharp, IoCloudUploadOutline,
+  IoShieldCheckmarkOutline,
 } from 'react-icons/io5';
+import Button from '../components/ui/Button';
+
+const CAREER_OPTIONS = [
+  { id: 'Frontend', title: 'Frontend Engineer', icon: IoCodeSlashOutline, desc: 'React, Next.js, CSS architecture, web performance, UI/UX.' },
+  { id: 'Backend', title: 'Backend Engineer', icon: IoServerOutline, desc: 'APIs, databases, microservices, caching, system scaling.' },
+  { id: 'Full Stack', title: 'Full Stack Engineer', icon: IoBriefcaseOutline, desc: 'End-to-end development from UI to infrastructure.' },
+  { id: 'AI/ML', title: 'AI / ML Engineer', icon: IoSparklesOutline, desc: 'Model training, neural networks, vector databases, LLMs.' },
+  { id: 'Data', title: 'Data Analyst', icon: IoSchoolOutline, desc: 'Analytical pipelines, BI, statistical modelling.' },
+];
+
+const EXPERIENCE_OPTIONS = [
+  { id: 'Intern', title: 'Intern / Fresher', desc: 'Seeking first industry exposure.' },
+  { id: 'Junior', title: 'Junior (0–2 years)', desc: 'Building core skills and best practices.' },
+  { id: 'Mid-Level', title: 'Mid-Level (2–5 years)', desc: 'Architecting features and leading modules.' },
+  { id: 'Senior', title: 'Senior (5+ years)', desc: 'Technical leadership and system design.' },
+];
+
+const COMPANY_OPTIONS = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Apple', 'Stripe', 'Startup', 'Custom'];
+
+const slide = {
+  initial: { opacity: 0, x: 24 },
+  enter: { opacity: 1, x: 0, transition: { duration: 0.3 } },
+  exit: { opacity: 0, x: -24, transition: { duration: 0.2 } },
+};
 
 export default function OnboardingPage() {
-  const { user, completeOnboarding } = useAuth();
+  const { user, completeOnboarding, isAuthenticated } = useAuth();
   const { uploadResume } = useResume();
+  const toast = useToast();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // 1–7
   const [careerGoal, setCareerGoal] = useState('Frontend');
   const [experience, setExperience] = useState('Junior');
-  const [targetCompanies, setTargetCompanies] = useState(['Google']);
-  const [customCompany, setCustomCompany] = useState('');
-  
-  // Resume upload status simulation
-  const [fileUploaded, setFileUploaded] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState('');
-  const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'analyzing' | 'extracting' | 'success'
-
-  // Roadmap generation state simulation
-  const [roadmapStatus, setRoadmapStatus] = useState('idle'); // 'idle' | 'compiling' | 'success'
+  const [targets, setTargets] = useState(['Google']);
+  const [customCo, setCustomCo] = useState('');
+  const [uploadStatus, setUploadStatus] = useState('idle'); // idle | uploading | done
+  const [uploadedName, setUploadedName] = useState('');
+  const [roadmapStatus, setRoadmapStatus] = useState('idle'); // idle | building | done
   const [roadmapProgress, setRoadmapProgress] = useState(0);
 
-  const careerGoalOptions = [
-    { id: 'Frontend', title: 'Frontend Engineer', icon: IoCodeSlashOutline, desc: 'React, Next.js, CSS architecture, performance optimizations, and web core vitals.' },
-    { id: 'Backend', title: 'Backend Architect', icon: IoServerOutline, desc: 'APIs design, database optimization, caching systems, microservices, and system scaling.' },
-    { id: 'Full Stack', title: 'Full Stack Engineer', icon: IoBriefcaseOutline, desc: 'Client components routing integration with database layers and DevOps deployment structures.' },
-    { id: 'AI/ML', title: 'AI / ML Engineer', icon: IoSparklesOutline, desc: 'Model architectures training, neural networks, vector databases, and weights fine-tuning.' },
-    { id: 'Data Analyst', title: 'Data Analyst', icon: IoSchoolOutline, desc: 'Analytical pipelines metrics, business intelligence tracking, and statistical aggregations.' }
-  ];
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.onboardingCompleted) return <Navigate to="/dashboard" replace />;
 
-  const experienceOptions = [
-    { id: 'Intern', title: 'Intern / Apprentice', desc: 'Seeking foundational industry placement parameters.' },
-    { id: 'Junior', title: 'Junior Engineer (0-2 years)', desc: 'Focusing on clean logic implementation and collaborative workflows.' },
-    { id: 'Mid-Level', title: 'Mid-Level Architect (2-5 years)', desc: 'Focusing on scalable component hierarchies and systems optimizations.' },
-    { id: 'Senior', title: 'Senior Tech Lead (5+ years)', desc: 'Directing system architectures, mentoring teams, and scaling core infrastructure.' }
-  ];
-
-  const companyOptions = ['Google', 'Microsoft', 'Amazon', 'TCS', 'Infosys', 'Accenture', 'Startup', 'Custom'];
-
-  const handleToggleCompany = (comp) => {
-    setTargetCompanies(prev => 
-      prev.includes(comp) 
-        ? prev.filter(c => c !== comp) 
-        : [...prev, comp]
-    );
-  };
+  const toggleTarget = (c) => setTargets(prev =>
+    prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+  );
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setUploadedFileName(file.name);
+    setUploadedName(file.name);
     setUploadStatus('uploading');
-
-    // Simulate Step 4 upload experience triggers
     setTimeout(() => {
-      setUploadStatus('analyzing');
-      setTimeout(() => {
-        setUploadStatus('extracting');
-        setTimeout(() => {
-          setUploadStatus('success');
-          setFileUploaded(true);
-          uploadResume(file); // Synchronizes the resume context
-        }, 1200);
-      }, 1000);
-    }, 1000);
+      uploadResume(file);
+      setUploadStatus('done');
+    }, 1800);
   };
 
-  const triggerRoadmapGeneration = () => {
-    setRoadmapStatus('compiling');
-    
-    // Simulate Step 6 progression counter with status texts
-    const interval = setInterval(() => {
+  const buildRoadmap = () => {
+    setRoadmapStatus('building');
+    const iv = setInterval(() => {
       setRoadmapProgress(p => {
-        if (p >= 100) {
-          clearInterval(interval);
-          setRoadmapStatus('success');
-          return 100;
-        }
-        return p + 4;
+        if (p >= 100) { clearInterval(iv); setRoadmapStatus('done'); return 100; }
+        return p + 5;
       });
-    }, 100);
+    }, 80);
   };
 
-  const handleFinalize = () => {
-    // Map custom company choice
-    const finalCompanies = targetCompanies.map(c => c === 'Custom' ? customCompany : c).filter(Boolean);
-    
-    // Save onboarding details into Auth Profile Context
+  const handleFinish = () => {
+    const finalTargets = targets.map(c => c === 'Custom' ? customCo : c).filter(Boolean);
     completeOnboarding({
-      careerGoal,
-      experienceLevel: experience,
-      targetCompanies: finalCompanies,
-      role: `${careerGoal} Developer`,
-      company: finalCompanies[0] || 'Enterprise Corp'
+      careerGoal, experienceLevel: experience,
+      targetCompanies: finalTargets,
+      role: `${careerGoal} Engineer`,
+      company: finalTargets[0] || '',
     });
+    toast.success('Setup complete!', 'Welcome to your workspace.');
     navigate('/dashboard');
   };
 
-  const getRoadmapStatusText = (progress) => {
-    if (progress < 25) return 'Scanning target company requirements...';
-    if (progress < 50) return 'Calibrating experience level guidelines...';
-    if (progress < 75) return 'Compiling diagnostic practice syllabus...';
-    if (progress < 100) return 'Designing custom mock interview milestones...';
-    return 'Roadmap compiled successfully!';
+  const roadmapMsg = (p) => {
+    if (p < 25) return 'Analysing target company requirements...';
+    if (p < 50) return 'Calibrating experience benchmarks...';
+    if (p < 75) return 'Compiling interview question banks...';
+    if (p < 100) return 'Finalising your learning roadmap...';
+    return 'Roadmap ready!';
   };
 
-  const pageVariants = {
-    initial: { opacity: 0, x: 20 },
-    enter: { opacity: 1, x: 0, transition: { duration: 0.35, ease: 'easeOut' } },
-    exit: { opacity: 0, x: -20, transition: { duration: 0.25, ease: 'easeIn' } }
-  };
+  const TOTAL_STEPS = 6;
+  const progressPct = step > 1 && step < 8 ? ((step - 1) / TOTAL_STEPS) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex items-center justify-center p-4 transition-colors duration-300">
-      {/* Onboarding Box */}
-      <div className="w-full max-w-2xl bg-bg-secondary border border-border-primary rounded-3xl p-8 sm:p-10 shadow-premium flex flex-col justify-between min-h-[540px] transition-all duration-300 relative overflow-hidden">
-        
-        {/* Top Progress bar */}
-        {step > 1 && step < 7 && (
-          <div className="absolute top-0 inset-x-0 h-1 bg-border-primary">
-            <div 
-              className="h-full bg-gradient-to-r from-brand-blue to-brand-purple transition-all duration-300"
-              style={{ width: `${((step - 1) / 5) * 100}%` }}
+    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+      <div className="w-full max-w-lg relative">
+        {/* Progress bar */}
+        {step > 1 && step < 8 && (
+          <div className="h-0.5 bg-border-primary rounded-full mb-8 overflow-hidden">
+            <motion.div
+              animate={{ width: `${progressPct}%` }}
+              className="h-full bg-gradient-to-r from-brand-blue to-brand-purple rounded-full"
+              transition={{ duration: 0.4 }}
             />
           </div>
         )}
 
-        <AnimatePresence mode="wait">
-          {/* STEP 1: WELCOME SCREEN */}
-          {step === 1 && (
-            <motion.div
-              key="step-1"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 text-center py-6"
-            >
-              <div className="mx-auto h-16 w-16 rounded-3xl bg-blue-50/20 dark:bg-blue-950/20 border border-brand-blue/30 flex items-center justify-center text-brand-blue">
-                <IoSparklesOutline size={30} className="animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-3xl font-extrabold font-heading text-text-primary tracking-tight">
-                  Calibrate Your Career Path
-                </h1>
-                <p className="text-xs sm:text-sm text-text-secondary max-w-md mx-auto leading-relaxed">
-                  Welcome, <span className="font-bold text-text-primary">{user?.name}</span>. Let's calibrate your tech goals to build a personalized interview roadmap.
-                </p>
-              </div>
-              <div className="pt-6">
-                <button
-                  onClick={() => setStep(2)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-text-primary px-6 py-3.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer shadow-premium"
-                >
-                  Configure Career Goal <IoArrowForwardOutline size={14} />
-                </button>
-              </div>
-            </motion.div>
-          )}
+        <div className="rounded-3xl border border-border-primary bg-bg-secondary shadow-premium p-8 overflow-hidden min-h-[480px] flex flex-col justify-between">
+          <AnimatePresence mode="wait">
 
-          {/* STEP 2: CHOOSE CAREER GOAL */}
-          {step === 2 && (
-            <motion.div
-              key="step-2"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 flex-1 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">Step 1 of 5</span>
-                  <h2 className="text-xl font-bold font-heading text-text-primary">Choose Your Tech Discipline</h2>
-                  <p className="text-xs text-text-secondary">We will tailor behavioral questions and roadmap checkpoints to this stack.</p>
+            {/* Step 1: Welcome */}
+            {step === 1 && (
+              <motion.div key="s1" variants={slide} initial="initial" animate="enter" exit="exit" className="flex flex-col items-center text-center gap-6 flex-1 justify-center py-4">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-brand-blue/20 to-brand-purple/20 border border-brand-blue/20 flex items-center justify-center">
+                  <IoSparklesOutline size={28} className="text-brand-blue animate-pulse" />
                 </div>
+                <div className="space-y-2">
+                  <h1 className="text-2xl font-bold font-heading text-text-primary">Welcome, {user?.name?.split(' ')[0]}!</h1>
+                  <p className="text-sm text-text-secondary leading-relaxed max-w-sm">
+                    Let's set up your personalised interview prep workspace in a few quick steps.
+                  </p>
+                </div>
+                <Button size="lg" onClick={() => setStep(2)} rightIcon={<IoArrowForwardOutline />}>
+                  Let's get started
+                </Button>
+              </motion.div>
+            )}
 
-                <div className="grid gap-3.5 max-h-[300px] overflow-y-auto pr-1">
-                  {careerGoalOptions.map(opt => {
+            {/* Step 2: Career goal */}
+            {step === 2 && (
+              <motion.div key="s2" variants={slide} initial="initial" animate="enter" exit="exit" className="space-y-5 flex flex-col flex-1">
+                <div>
+                  <p className="text-xs font-bold text-brand-blue uppercase tracking-widest">Step 1 of {TOTAL_STEPS}</p>
+                  <h2 className="text-xl font-bold font-heading text-text-primary mt-1">What's your target role?</h2>
+                  <p className="text-xs text-text-tertiary mt-1">We'll tailor questions and roadmaps to this discipline.</p>
+                </div>
+                <div className="space-y-2 flex-1 overflow-y-auto">
+                  {CAREER_OPTIONS.map(opt => {
                     const Icon = opt.icon;
-                    const isSelected = careerGoal === opt.id;
                     return (
-                      <button
-                        key={opt.id}
-                        onClick={() => setCareerGoal(opt.id)}
-                        className={`flex items-start gap-4 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
-                          isSelected 
-                            ? 'border-brand-blue bg-blue-50/10 dark:border-blue-500 dark:bg-blue-950/15' 
-                            : 'border-border-primary hover:bg-surface-hover bg-bg-secondary'
-                        }`}
-                      >
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                          isSelected 
-                            ? 'bg-brand-blue/10 border-brand-blue/30 text-brand-blue' 
-                            : 'bg-bg-primary border-border-primary text-text-secondary'
+                      <button key={opt.id} onClick={() => setCareerGoal(opt.id)}
+                        className={`w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          careerGoal === opt.id ? 'border-brand-blue bg-brand-blue/5' : 'border-border-primary hover:bg-surface-hover'
                         }`}>
-                          <Icon size={18} />
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${careerGoal === opt.id ? 'bg-brand-blue/15 text-brand-blue' : 'bg-surface text-text-tertiary'}`}>
+                          <Icon size={16} />
                         </div>
                         <div>
-                          <span className="font-bold text-xs text-text-primary block">{opt.title}</span>
-                          <span className="text-[10px] text-text-secondary block mt-1 leading-relaxed">{opt.desc}</span>
+                          <p className="text-sm font-semibold text-text-primary">{opt.title}</p>
+                          <p className="text-xs text-text-tertiary mt-0.5">{opt.desc}</p>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+                <NavButtons onBack={() => setStep(1)} onNext={() => setStep(3)} />
+              </motion.div>
+            )}
 
-              <div className="flex justify-between items-center pt-6 border-t border-border-primary mt-4">
-                <button 
-                  onClick={() => setStep(1)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
-                >
-                  <IoArrowBackOutline /> Back
-                </button>
-                <button 
-                  onClick={() => setStep(3)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-text-primary px-5 py-2.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer"
-                >
-                  Next Step <IoArrowForwardOutline />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 3: SELECT EXPERIENCE LEVEL */}
-          {step === 3 && (
-            <motion.div
-              key="step-3"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 flex-1 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">Step 2 of 5</span>
-                  <h2 className="text-xl font-bold font-heading text-text-primary">What is Your Experience Level?</h2>
-                  <p className="text-xs text-text-secondary">We will scale interviewer difficulty and algorithm criteria accordingly.</p>
+            {/* Step 3: Experience */}
+            {step === 3 && (
+              <motion.div key="s3" variants={slide} initial="initial" animate="enter" exit="exit" className="space-y-5 flex flex-col flex-1">
+                <div>
+                  <p className="text-xs font-bold text-brand-blue uppercase tracking-widest">Step 2 of {TOTAL_STEPS}</p>
+                  <h2 className="text-xl font-bold font-heading text-text-primary mt-1">Your experience level?</h2>
+                  <p className="text-xs text-text-tertiary mt-1">We'll scale interview difficulty accordingly.</p>
                 </div>
-
-                <div className="grid gap-3">
-                  {experienceOptions.map(opt => {
-                    const isSelected = experience === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => setExperience(opt.id)}
-                        className={`p-4 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
-                          isSelected 
-                            ? 'border-brand-blue bg-blue-50/10 dark:border-blue-500 dark:bg-blue-950/15' 
-                            : 'border-border-primary hover:bg-surface-hover bg-bg-secondary'
-                        }`}
-                      >
-                        <span className="font-bold text-xs text-text-primary block">{opt.title}</span>
-                        <span className="text-[10px] text-text-secondary block mt-1">{opt.desc}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-6 border-t border-border-primary mt-4">
-                <button 
-                  onClick={() => setStep(2)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
-                >
-                  <IoArrowBackOutline /> Back
-                </button>
-                <button 
-                  onClick={() => setStep(4)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-text-primary px-5 py-2.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer"
-                >
-                  Next Step <IoArrowForwardOutline />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 4: UPLOAD RESUME ANALYSIS */}
-          {step === 4 && (
-            <motion.div
-              key="step-4"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 flex-1 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">Step 3 of 5</span>
-                  <h2 className="text-xl font-bold font-heading text-text-primary">Calibrate Your Resume Document</h2>
-                  <p className="text-xs text-text-secondary">Upload your resume. Our AI parser will index key skills and compile custom test metrics.</p>
-                </div>
-
-                {/* Upload sandbox area */}
-                <div className="border border-border-primary rounded-2xl bg-bg-primary/50 p-6 space-y-4">
-                  {uploadStatus === 'idle' && (
-                    <div className="border border-dashed border-border-primary hover:border-brand-blue/50 rounded-xl p-8 text-center transition-all bg-bg-secondary relative">
-                      <input 
-                        type="file" 
-                        id="onb-upload"
-                        className="hidden"
-                        accept=".pdf,.docx,.txt"
-                        onChange={handleFileUpload}
-                      />
-                      <label htmlFor="onb-upload" className="cursor-pointer flex flex-col items-center">
-                        <IoCloudUploadOutline size={26} className="text-text-secondary mb-2" />
-                        <span className="text-xs font-bold text-text-primary">Drag & drop resume PDF here</span>
-                        <span className="text-[10px] text-text-secondary mt-0.5">or click to choose files from disk</span>
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Upload status simulations */}
-                  {uploadStatus !== 'idle' && (
-                    <div className="p-6 rounded-xl bg-bg-secondary border border-border-primary space-y-4 text-center">
-                      <div className="flex justify-center">
-                        {uploadStatus === 'success' ? (
-                          <div className="h-10 w-10 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 flex items-center justify-center animate-bounce">
-                            <IoShieldCheckmarkOutline size={22} />
-                          </div>
-                        ) : (
-                          <span className="h-8 w-8 rounded-full border-2 border-border-primary border-t-brand-blue animate-spin" />
-                        )}
-                      </div>
-                      
-                      <div className="space-y-1 text-xs">
-                        {uploadStatus === 'uploading' && <p className="font-semibold text-brand-blue">Connecting secure document server...</p>}
-                        {uploadStatus === 'analyzing' && <p className="font-semibold text-brand-purple">Scanning ATS compatibility grids...</p>}
-                        {uploadStatus === 'extracting' && <p className="font-semibold text-orange-500">Mapping job-matching indices...</p>}
-                        {uploadStatus === 'success' && (
-                          <div>
-                            <p className="font-semibold text-emerald-605 text-emerald-600">CV calibrated successfully!</p>
-                            <span className="text-[10px] text-text-secondary mt-1 block font-mono">{uploadedFileName}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-6 border-t border-border-primary mt-4">
-                <button 
-                  onClick={() => setStep(3)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
-                >
-                  <IoArrowBackOutline /> Back
-                </button>
-                <div className="flex gap-2">
-                  {!fileUploaded && (
-                    <button 
-                      onClick={() => setStep(5)}
-                      className="px-4 py-2.5 rounded-xl border border-border-primary text-xs font-semibold hover:bg-surface-hover transition-colors cursor-pointer"
-                    >
-                      Skip Resume
+                <div className="space-y-2.5 flex-1">
+                  {EXPERIENCE_OPTIONS.map(opt => (
+                    <button key={opt.id} onClick={() => setExperience(opt.id)}
+                      className={`w-full p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                        experience === opt.id ? 'border-brand-blue bg-brand-blue/5' : 'border-border-primary hover:bg-surface-hover'
+                      }`}>
+                      <p className="text-sm font-semibold text-text-primary">{opt.title}</p>
+                      <p className="text-xs text-text-tertiary mt-0.5">{opt.desc}</p>
                     </button>
+                  ))}
+                </div>
+                <NavButtons onBack={() => setStep(2)} onNext={() => setStep(4)} />
+              </motion.div>
+            )}
+
+            {/* Step 4: Resume upload */}
+            {step === 4 && (
+              <motion.div key="s4" variants={slide} initial="initial" animate="enter" exit="exit" className="space-y-5 flex flex-col flex-1">
+                <div>
+                  <p className="text-xs font-bold text-brand-blue uppercase tracking-widest">Step 3 of {TOTAL_STEPS}</p>
+                  <h2 className="text-xl font-bold font-heading text-text-primary mt-1">Upload your resume</h2>
+                  <p className="text-xs text-text-tertiary mt-1">We'll extract your skills to personalise quizzes and interview questions.</p>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                  {uploadStatus === 'idle' && (
+                    <label htmlFor="ob-upload" className="w-full cursor-pointer">
+                      <div className="border-2 border-dashed border-border-primary rounded-2xl p-10 text-center hover:border-brand-blue/50 hover:bg-surface transition-all">
+                        <IoCloudUploadOutline size={32} className="mx-auto text-text-tertiary mb-3" />
+                        <p className="text-sm font-semibold text-text-primary">Drop your resume here</p>
+                        <p className="text-xs text-text-tertiary mt-1">or click to select · PDF, DOCX, TXT</p>
+                      </div>
+                      <input id="ob-upload" type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleFileUpload} />
+                    </label>
                   )}
-                  <button 
-                    onClick={() => setStep(5)}
-                    disabled={uploadStatus !== 'success' && uploadStatus !== 'idle'}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-text-primary px-5 py-2.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer disabled:opacity-40"
-                  >
-                    Next Step <IoArrowForwardOutline />
-                  </button>
+                  {uploadStatus === 'uploading' && (
+                    <div className="text-center space-y-4 py-4">
+                      <span className="h-10 w-10 mx-auto rounded-full border-2 border-border-primary border-t-brand-blue animate-spin block" />
+                      <div>
+                        <p className="text-sm font-semibold text-brand-blue">Uploading & analysing...</p>
+                        <p className="text-xs text-text-tertiary mt-1 font-mono">{uploadedName}</p>
+                      </div>
+                    </div>
+                  )}
+                  {uploadStatus === 'done' && (
+                    <div className="text-center space-y-3 py-4">
+                      <div className="h-12 w-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-center">
+                        <IoShieldCheckmarkOutline size={24} className="text-emerald-500" />
+                      </div>
+                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Resume uploaded!</p>
+                      <p className="text-xs text-text-tertiary font-mono">{uploadedName}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 5: CHOOSE TARGET COMPANIES */}
-          {step === 5 && (
-            <motion.div
-              key="step-5"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 flex-1 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">Step 4 of 5</span>
-                  <h2 className="text-xl font-bold font-heading text-text-primary">Select Target Companies</h2>
-                  <p className="text-xs text-text-secondary">We will map interview scenarios to the engineering structures of these companies.</p>
+                <div className="flex justify-between items-center pt-4 border-t border-border-primary">
+                  <Button variant="ghost" size="sm" onClick={() => setStep(3)} leftIcon={<IoArrowBackOutline size={14} />}>Back</Button>
+                  <div className="flex gap-2">
+                    {uploadStatus !== 'done' && (
+                      <Button variant="secondary" size="sm" onClick={() => setStep(5)}>Skip</Button>
+                    )}
+                    <Button size="sm" onClick={() => setStep(5)} disabled={uploadStatus === 'uploading'} rightIcon={<IoArrowForwardOutline size={14} />}>
+                      Continue
+                    </Button>
+                  </div>
                 </div>
+              </motion.div>
+            )}
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {companyOptions.map(comp => {
-                    const isSelected = targetCompanies.includes(comp);
+            {/* Step 5: Target companies */}
+            {step === 5 && (
+              <motion.div key="s5" variants={slide} initial="initial" animate="enter" exit="exit" className="space-y-5 flex flex-col flex-1">
+                <div>
+                  <p className="text-xs font-bold text-brand-blue uppercase tracking-widest">Step 4 of {TOTAL_STEPS}</p>
+                  <h2 className="text-xl font-bold font-heading text-text-primary mt-1">Target companies</h2>
+                  <p className="text-xs text-text-tertiary mt-1">We'll align interview questions to these companies' engineering cultures.</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 flex-1 content-start">
+                  {COMPANY_OPTIONS.map(co => {
+                    const sel = targets.includes(co);
                     return (
-                      <button
-                        key={comp}
-                        type="button"
-                        onClick={() => handleToggleCompany(comp)}
-                        className={`p-3 rounded-xl border text-center font-heading font-semibold text-xs transition-all duration-200 cursor-pointer ${
-                          isSelected 
-                            ? 'border-brand-blue bg-blue-50/20 text-brand-blue dark:border-blue-500 dark:bg-blue-950/20' 
-                            : 'border-border-primary hover:border-text-secondary bg-bg-secondary text-text-secondary'
-                        }`}
-                      >
-                        {comp}
+                      <button key={co} onClick={() => toggleTarget(co)}
+                        className={`py-3 rounded-xl border text-sm font-semibold text-center cursor-pointer transition-all ${
+                          sel ? 'border-brand-blue bg-brand-blue/8 text-brand-blue' : 'border-border-primary text-text-secondary hover:bg-surface-hover'
+                        }`}>
+                        {co}
                       </button>
                     );
                   })}
                 </div>
+                {targets.includes('Custom') && (
+                  <input
+                    type="text"
+                    placeholder="e.g. Netflix, Airbnb, OpenAI..."
+                    value={customCo}
+                    onChange={e => setCustomCo(e.target.value)}
+                    className="w-full rounded-xl border border-border-primary bg-surface px-4 py-2.5 text-sm text-text-primary outline-none focus:border-brand-blue"
+                  />
+                )}
+                <NavButtons
+                  onBack={() => setStep(4)}
+                  onNext={() => setStep(6)}
+                  nextDisabled={targets.includes('Custom') && !customCo.trim()}
+                />
+              </motion.div>
+            )}
 
-                {/* Custom Company slide-in input block */}
-                <AnimatePresence>
-                  {targetCompanies.includes('Custom') && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.25 }}
-                      className="mt-4 overflow-hidden"
-                    >
-                      <label className="block text-xxs font-bold uppercase tracking-wider text-text-secondary mb-1">
-                        Custom Company Name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Netflix, OpenAI, Vercel..."
-                        value={customCompany}
-                        onChange={(e) => setCustomCompany(e.target.value)}
-                        className="w-full rounded-lg border border-border-primary bg-bg-primary px-3.5 py-2.5 text-xs outline-none focus:border-brand-blue text-text-primary"
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="flex justify-between items-center pt-6 border-t border-border-primary mt-4">
-                <button 
-                  onClick={() => setStep(4)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
-                >
-                  <IoArrowBackOutline /> Back
-                </button>
-                <button 
-                  onClick={() => setStep(6)}
-                  disabled={targetCompanies.includes('Custom') && !customCompany.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-text-primary px-5 py-2.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer disabled:opacity-40"
-                >
-                  Next Step <IoArrowForwardOutline />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 6: ROADMAP GENERATION SCREEN */}
-          {step === 6 && (
-            <motion.div
-              key="step-6"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 flex-1 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">Step 5 of 5</span>
-                  <h2 className="text-xl font-bold font-heading text-text-primary">Generate Your Learning Roadmap</h2>
-                  <p className="text-xs text-text-secondary">We compile custom technical syllabus modules according to your profiles.</p>
+            {/* Step 6: Build roadmap */}
+            {step === 6 && (
+              <motion.div key="s6" variants={slide} initial="initial" animate="enter" exit="exit" className="space-y-5 flex flex-col flex-1">
+                <div>
+                  <p className="text-xs font-bold text-brand-blue uppercase tracking-widest">Step 5 of {TOTAL_STEPS}</p>
+                  <h2 className="text-xl font-bold font-heading text-text-primary mt-1">Build your roadmap</h2>
+                  <p className="text-xs text-text-tertiary mt-1">We'll compile a personalised learning path based on your setup.</p>
                 </div>
-
-                <div className="p-6 border border-border-primary rounded-2xl bg-bg-primary/50 space-y-4">
+                <div className="flex-1 flex items-center justify-center">
                   {roadmapStatus === 'idle' && (
-                    <div className="text-center py-6">
-                      <p className="text-xs text-text-secondary mb-4">Your goals, experience, and target companies are locked. Compile roadmap now.</p>
-                      <button 
-                        onClick={triggerRoadmapGeneration}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-brand-purple px-5 py-2.5 text-xs font-semibold text-white hover:opacity-90 transition-colors shadow-glow-purple cursor-pointer"
-                      >
-                        <IoSparklesOutline /> Compile Placement Roadmap
-                      </button>
+                    <div className="text-center space-y-4">
+                      <p className="text-sm text-text-secondary">Your goals are configured. Build your roadmap now.</p>
+                      <Button leftIcon={<IoSparklesOutline />} onClick={buildRoadmap}>
+                        Generate Roadmap
+                      </Button>
                     </div>
                   )}
-
-                  {roadmapStatus === 'compiling' && (
-                    <div className="space-y-4 text-center">
-                      <span className="h-6 w-6 rounded-full border-2 border-border-primary border-t-brand-purple animate-spin inline-block" />
-                      <div className="space-y-1 text-xs">
-                        <p className="font-semibold text-brand-purple min-h-[18px]">
-                          {getRoadmapStatusText(roadmapProgress)}
-                        </p>
-                        <span className="text-[10px] text-text-secondary block">Assembling checkpoints ({roadmapProgress}%)</span>
+                  {roadmapStatus === 'building' && (
+                    <div className="w-full text-center space-y-4">
+                      <span className="h-10 w-10 mx-auto rounded-full border-2 border-border-primary border-t-brand-purple animate-spin block" />
+                      <p className="text-sm font-semibold text-brand-purple">{roadmapMsg(roadmapProgress)}</p>
+                      <div className="w-48 mx-auto h-1.5 rounded-full bg-border-primary overflow-hidden">
+                        <motion.div animate={{ width: `${roadmapProgress}%` }} className="h-full bg-brand-purple rounded-full" />
                       </div>
-                      <div className="w-full bg-border-primary h-1.5 rounded-full overflow-hidden">
-                        <div className="h-full bg-brand-purple transition-all duration-100" style={{ width: `${roadmapProgress}%` }} />
-                      </div>
+                      <p className="text-xs text-text-tertiary">{roadmapProgress}%</p>
                     </div>
                   )}
-
-                  {roadmapStatus === 'success' && (
-                    <div className="text-center py-6 space-y-3">
-                      <div className="h-10 w-10 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 flex items-center justify-center mx-auto">
-                        <IoCheckmarkCircleSharp size={24} />
+                  {roadmapStatus === 'done' && (
+                    <div className="text-center space-y-3">
+                      <div className="h-12 w-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-center">
+                        <IoCheckmarkCircleSharp size={24} className="text-emerald-500" />
                       </div>
-                      <div className="space-y-1 text-xs">
-                        <p className="font-bold text-emerald-600">Roadmap Compiled Successfully!</p>
-                        <span className="text-[10px] text-text-secondary block">5 syllabus checkpoints ready for mock simulator training.</span>
-                      </div>
+                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Roadmap compiled!</p>
+                      <p className="text-xs text-text-tertiary">5 learning checkpoints ready.</p>
                     </div>
                   )}
                 </div>
-              </div>
+                <div className="flex justify-between items-center pt-4 border-t border-border-primary">
+                  <Button variant="ghost" size="sm" onClick={() => setStep(5)} leftIcon={<IoArrowBackOutline size={14} />} disabled={roadmapStatus === 'building'}>Back</Button>
+                  <Button size="sm" onClick={() => setStep(7)} disabled={roadmapStatus !== 'done'} rightIcon={<IoArrowForwardOutline size={14} />}>
+                    Finish setup
+                  </Button>
+                </div>
+              </motion.div>
+            )}
 
-              <div className="flex justify-between items-center pt-6 border-t border-border-primary mt-4">
-                <button 
-                  onClick={() => setStep(5)}
-                  disabled={roadmapStatus === 'compiling'}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer disabled:opacity-40 transition-colors"
+            {/* Step 7: Done */}
+            {step === 7 && (
+              <motion.div key="s7" variants={slide} initial="initial" animate="enter" exit="exit" className="flex flex-col items-center text-center gap-6 flex-1 justify-center py-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  className="h-16 w-16 rounded-full bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-center"
                 >
-                  <IoArrowBackOutline /> Back
-                </button>
-                <button 
-                  onClick={() => setStep(7)}
-                  disabled={roadmapStatus !== 'success'}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-text-primary px-5 py-2.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer disabled:opacity-40"
-                >
-                  Complete Calibration <IoArrowForwardOutline />
-                </button>
-              </div>
-            </motion.div>
-          )}
+                  <IoCheckmarkCircleSharp size={36} className="text-emerald-500" />
+                </motion.div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold font-heading text-text-primary">All set!</h2>
+                  <p className="text-sm text-text-secondary max-w-sm leading-relaxed">
+                    Your workspace is personalised. Start with a mock interview or check your resume ATS score.
+                  </p>
+                </div>
+                <Button size="lg" onClick={handleFinish} rightIcon={<IoArrowForwardOutline />}>
+                  Enter workspace
+                </Button>
+              </motion.div>
+            )}
 
-          {/* STEP 7: GO TO DASHBOARD CONGRATS */}
-          {step === 7 && (
-            <motion.div
-              key="step-7"
-              variants={pageVariants}
-              initial="initial"
-              animate="enter"
-              exit="exit"
-              className="space-y-6 text-center py-8"
-            >
-              <div className="mx-auto h-16 w-16 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 flex items-center justify-center shadow-inner">
-                <IoCheckmarkCircleSharp size={32} className="animate-bounce" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-extrabold font-heading text-text-primary">Calibration Complete</h2>
-                <p className="text-xs text-text-secondary max-w-sm mx-auto leading-relaxed">
-                  Your custom learning path is compiled. Enter your dashboard workspace to upload resumes and begin AI-assisted coding reviews.
-                </p>
-              </div>
-              <div className="pt-6">
-                <button
-                  onClick={handleFinalize}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-text-primary px-8 py-3.5 text-xs font-semibold text-bg-secondary hover:opacity-90 transition-all shadow-premium cursor-pointer"
-                >
-                  Enter Prep Workspace <IoArrowForwardOutline />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function NavButtons({ onBack, onNext, nextDisabled = false }) {
+  return (
+    <div className="flex justify-between items-center pt-4 border-t border-border-primary">
+      <Button variant="ghost" size="sm" onClick={onBack} leftIcon={<IoArrowBackOutline size={14} />}>Back</Button>
+      <Button size="sm" onClick={onNext} disabled={nextDisabled} rightIcon={<IoArrowForwardOutline size={14} />}>Next</Button>
     </div>
   );
 }

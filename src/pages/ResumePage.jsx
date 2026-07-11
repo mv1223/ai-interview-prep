@@ -1,250 +1,394 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useResume } from '../context/ResumeContext';
-import { 
-  IoCloudUploadOutline, 
-  IoDocumentTextOutline, 
-  IoSparklesOutline, 
-  IoCheckmarkCircleSharp,
-  IoCloseOutline
+import { useToast } from '../context/ToastContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  IoCloudUploadOutline, IoDocumentTextOutline, IoSparklesOutline,
+  IoCheckmarkCircle, IoCloseOutline, IoArrowForwardOutline,
+  IoCodeSlashOutline, IoConstructOutline, IoLayersOutline, IoSchoolOutline,
+  IoShieldCheckmarkOutline, IoAlertCircleOutline, IoTrendingUpOutline,
 } from 'react-icons/io5';
+import ProgressRing from '../components/ui/ProgressRing';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+
+function SkillChip({ name }) {
+  return (
+    <span className="inline-flex items-center rounded-lg border border-border-primary bg-surface px-2.5 py-1 text-xs font-medium text-text-secondary hover:border-brand-blue/40 hover:text-brand-blue transition-colors">
+      {name}
+    </span>
+  );
+}
+
+function SkillSection({ icon: Icon, title, skills, color }) {
+  if (!skills || skills.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon size={15} className={color} />
+        <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">{title}</h4>
+        <span className="text-xs text-text-tertiary">({skills.length})</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {skills.map(s => <SkillChip key={s} name={s} />)}
+      </div>
+    </div>
+  );
+}
 
 export default function ResumePage() {
-  const { 
-    isAnalyzing, 
-    atsScore, 
-    fileName, 
-    optimizations, 
-    uploadResume, 
-    applyOptimization, 
-    resetResume 
+  const {
+    status, isAnalyzing, fileName, fileSize, uploadProgress,
+    analysisStep, extractedSkills, atsAnalysis, atsScore,
+    optimizations, generatedQuizQuestions, uploadResume,
+    applyOptimization, resetResume, hasResume,
   } = useResume();
+  const toast = useToast();
 
   const [dragActive, setDragActive] = useState(false);
+  const [activeTab, setActiveTab] = useState('score'); // score | skills | optimize
 
-  const handleDrag = (e) => {
+  const handleDrag = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
+  }, []);
 
-  const handleDrop = (e) => {
+  const handleDrop = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  }, []);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      uploadResume(e.dataTransfer.files[0]);
+  const handleFile = (file) => {
+    const allowed = ['application/pdf', 'text/plain', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|txt|doc|docx)$/i)) {
+      toast.error('Unsupported file', 'Please upload a PDF, DOC, DOCX, or TXT file.');
+      return;
     }
+    uploadResume(file);
+    toast.info('Uploading...', `Analysing ${file.name}`);
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      uploadResume(e.target.files[0]);
-    }
+  const handleApply = (id) => {
+    applyOptimization(id);
+    toast.success('Suggestion applied!', 'ATS score updated.');
   };
+
+  const handleReset = () => {
+    resetResume();
+    setActiveTab('score');
+  };
+
+  const scoreColor = atsScore >= 85 ? '#10b981' : atsScore >= 70 ? '#3b82f6' : '#f97316';
+
+  const TABS = [
+    { id: 'score', label: 'ATS Score' },
+    { id: 'skills', label: `Skills${extractedSkills ? ` (${Object.values(extractedSkills).flat().length})` : ''}` },
+    { id: 'optimize', label: `Optimize${optimizations.length > 0 ? ` (${optimizations.filter(o => !o.applied).length})` : ''}` },
+  ];
 
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold font-heading text-text-primary">
-          AI Resume & ATS Optimizer
-        </h1>
-        <p className="text-sm text-text-secondary mt-1">
-          Scan your CV for Applicant Tracking System (ATS) matching keywords and merge optimizations directly.
-        </p>
+    <div className="space-y-7 pb-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-heading text-text-primary">Resume Analyser</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Upload your CV to extract skills, calculate ATS score, and get personalised quiz questions.
+          </p>
+        </div>
+        {hasResume && (
+          <Button variant="secondary" size="sm" onClick={handleReset} leftIcon={<IoCloseOutline size={15} />}>
+            Upload new resume
+          </Button>
+        )}
       </div>
 
-      {/* Main Optimizer Dashboard Grid */}
-      <div className="grid lg:grid-cols-12 gap-8 items-start">
-        
-        {/* LEFT COLUMN: Upload Dropzone & Gauge score */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          
-          {/* File Dropzone card */}
-          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm">
-            <h3 className="text-sm font-bold font-heading text-text-primary mb-4">
-              Resume Document
-            </h3>
-            
-            {/* Interactive drop area */}
-            <div
-              onDragEnter={handleDrag}
-              onDragOver={handleDrag}
-              onDragLeave={handleDrag}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
-                dragActive 
-                  ? 'border-brand-blue bg-blue-50/10 dark:border-blue-500/20' 
-                  : 'border-border-primary hover:border-slate-350 bg-bg-secondary'
-              }`}
-            >
-              <input
-                type="file"
-                id="file-upload"
-                className="hidden"
-                accept=".pdf,.docx,.txt"
-                onChange={handleFileChange}
-              />
-              
-              <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                <div className="h-10 w-10 rounded-full bg-bg-primary text-text-secondary flex items-center justify-center mb-3">
-                  <IoCloudUploadOutline size={20} />
-                </div>
-                <span className="text-xs font-bold text-text-primary">
-                  Drag and drop PDF here
-                </span>
-                <span className="text-xxs text-text-secondary mt-1">
-                  or click to select standard documents
-                </span>
-              </label>
+      {/* Upload zone — only shown before upload */}
+      {!hasResume && status !== 'analyzing' && status !== 'uploading' && (
+        <div
+          onDragEnter={handleDrag}
+          onDragOver={handleDrag}
+          onDragLeave={handleDrag}
+          onDrop={handleDrop}
+          className={`rounded-2xl border-2 border-dashed transition-all duration-200 p-12 text-center cursor-pointer group ${
+            dragActive
+              ? 'border-brand-blue bg-brand-blue/5'
+              : 'border-border-primary hover:border-brand-blue/50 hover:bg-surface'
+          }`}
+          onClick={() => document.getElementById('resume-file-input')?.click()}
+        >
+          <input
+            id="resume-file-input"
+            type="file"
+            className="hidden"
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+          />
+          <div className="flex flex-col items-center gap-4">
+            <div className={`h-16 w-16 rounded-2xl border-2 flex items-center justify-center transition-all ${
+              dragActive ? 'border-brand-blue bg-brand-blue/10 text-brand-blue' : 'border-border-primary bg-surface text-text-tertiary group-hover:border-brand-blue/50 group-hover:text-brand-blue'
+            }`}>
+              <IoCloudUploadOutline size={28} />
             </div>
-
-            {/* Uploaded File status */}
-            {fileName && (
-              <div className="mt-4 p-3 bg-bg-primary rounded-lg border border-border-primary flex items-center gap-2 text-xs">
-                <IoDocumentTextOutline className="text-brand-blue shrink-0" size={16} />
-                <span className="text-text-primary truncate flex-1 font-medium">{fileName}</span>
-                <button
-                  onClick={resetResume}
-                  className="text-text-secondary hover:text-red-500 p-0.5 rounded transition-colors cursor-pointer"
-                  title="Remove file"
-                >
-                  <IoCloseOutline size={16} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ATS score gauge chart */}
-          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm flex flex-col items-center justify-center text-center">
-            <h3 className="text-sm font-bold font-heading text-text-primary mb-6">
-              ATS Score Analytics
-            </h3>
-
-            {isAnalyzing ? (
-              <div className="h-32 flex flex-col items-center justify-center">
-                <span className="h-10 w-10 rounded-full border-2 border-slate-200 border-t-brand-blue animate-spin" />
-                <span className="text-xxs text-text-secondary mt-3 font-semibold uppercase tracking-wider animate-pulse">Running Scan...</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Custom circular progress gauge */}
-                <div 
-                  className="relative h-32 w-32 rounded-full flex items-center justify-center"
-                  style={{
-                    background: `conic-gradient(#3b82f6 ${atsScore * 3.6}deg, var(--border-primary) 0deg)`
-                  }}
-                >
-                  <div className="h-[108px] w-[108px] rounded-full bg-bg-secondary flex flex-col items-center justify-center shadow-inner">
-                    <span className="text-3xl font-extrabold font-heading text-text-primary">{atsScore}%</span>
-                    <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">FIT VALUE</span>
-                  </div>
-                </div>
-
-                <div className="text-xs font-semibold text-text-secondary">
-                  {!fileName ? (
-                    <span className="text-text-secondary">No resume uploaded.</span>
-                  ) : atsScore >= 85 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400">Excellent compatibility rating.</span>
-                  ) : atsScore >= 75 ? (
-                    <span className="text-brand-blue dark:text-blue-400">Ready to submit. Apply suggestions.</span>
-                  ) : (
-                    <span className="text-yellow-600 dark:text-yellow-400">Below standard filter. Merge recommendations.</span>
-                  )}
-                </div>
-              </div>
-            )}
+            <div>
+              <p className="text-base font-semibold text-text-primary">
+                {dragActive ? 'Drop your resume here' : 'Drag & drop your resume'}
+              </p>
+              <p className="text-sm text-text-tertiary mt-1">or <span className="text-brand-blue font-medium">click to browse</span></p>
+              <p className="text-xs text-text-tertiary mt-2">Supports PDF, DOC, DOCX, TXT · Max 10MB</p>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* RIGHT COLUMN: Optimization Accordion (Before vs After Diff) */}
-        <div className="lg:col-span-8 rounded-2xl border border-border-primary bg-bg-secondary shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-border-primary flex items-center justify-between shrink-0 bg-bg-primary/30">
-            <h3 className="text-base font-bold font-heading text-text-primary">
-              Optimization Checklist
-            </h3>
-            <span className="text-xs text-text-secondary font-semibold">
-              {fileName ? `${optimizations.filter(o => o.applied).length} of ${optimizations.length} merged` : '0 merged'}
-            </span>
-          </div>
-
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto max-h-[500px]">
-            {isAnalyzing ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((val) => (
-                  <div key={val} className="h-28 rounded-lg bg-bg-primary/50 border border-border-primary animate-pulse" />
+      {/* Upload/analysis progress */}
+      {(status === 'uploading' || status === 'analyzing') && (
+        <div className="rounded-2xl border border-border-primary bg-bg-secondary p-8">
+          <div className="flex flex-col items-center gap-5 text-center">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-2xl bg-brand-blue/10 flex items-center justify-center">
+                <IoSparklesOutline size={28} className="text-brand-blue animate-pulse" />
+              </div>
+              <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-bg-secondary border-t-brand-blue animate-spin bg-brand-blue/10" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-semibold text-text-primary">
+                {status === 'uploading' ? 'Uploading resume...' : 'Analysing your resume...'}
+              </p>
+              <p className="text-sm text-brand-blue font-medium">{analysisStep || 'Processing...'}</p>
+            </div>
+            {status === 'uploading' && (
+              <div className="w-64 space-y-1.5">
+                <div className="h-1.5 rounded-full bg-border-primary overflow-hidden">
+                  <motion.div
+                    animate={{ width: `${Math.min(uploadProgress, 100)}%` }}
+                    className="h-full rounded-full bg-brand-blue"
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <p className="text-xs text-text-tertiary">{Math.round(Math.min(uploadProgress, 100))}%</p>
+              </div>
+            )}
+            {status === 'analyzing' && (
+              <div className="flex gap-2">
+                {['Extracting skills', 'Computing ATS', 'Generating quiz'].map((step, i) => (
+                  <div key={step} className="flex items-center gap-1.5 text-xs text-text-tertiary">
+                    <span className={`h-1.5 w-1.5 rounded-full animate-bounce bg-brand-blue`} style={{ animationDelay: `${i * 200}ms` }} />
+                    {step}
+                  </div>
                 ))}
               </div>
-            ) : !fileName ? (
-              /* Premium Empty State */
-              <div className="py-14 text-center flex flex-col items-center justify-center space-y-4">
-                <IoDocumentTextOutline size={48} className="text-text-secondary opacity-30 animate-pulse" />
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-text-primary">No Resume Uploaded Yet</h4>
-                  <p className="text-xs text-text-secondary max-w-sm mx-auto">
-                    Please upload your CV document in the left panel to scan keywords, calculate ATS matching values, and reveal interactive optimizations.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              optimizations.map((opt) => (
-                <div 
-                  key={opt.id}
-                  className={`rounded-xl border p-5 space-y-3 transition-colors ${
-                    opt.applied 
-                      ? 'border-border-secondary bg-bg-primary/30' 
-                      : 'border-border-primary bg-bg-secondary'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xxs font-bold uppercase tracking-wider text-brand-purple bg-purple-50/15 dark:bg-purple-950/20 px-2.5 py-0.5 rounded">
-                      {opt.section}
-                    </span>
-                    {opt.applied ? (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-450">
-                        <IoCheckmarkCircleSharp size={16} /> Applied to Resume
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => applyOptimization(opt.id)}
-                        className="rounded-lg bg-brand-blue px-3 py-1.5 text-xxs font-semibold text-white hover:bg-blue-600 shadow-sm transition-all cursor-pointer"
-                      >
-                        Apply Suggestion
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Red/Green side-by-side diff mock */}
-                  <div className="grid md:grid-cols-2 gap-4 text-xs font-mono">
-                    {/* Before (Red) */}
-                    <div className="p-3 bg-red-50/15 rounded-lg border border-red-200/20 text-red-600 dark:bg-red-950/10 dark:text-red-400">
-                      <span className="block text-[9px] font-bold text-red-500 uppercase tracking-widest mb-1.5">- Original Text</span>
-                      {opt.original}
-                    </div>
-
-                    {/* After (Green) */}
-                    <div className="p-3 bg-emerald-50/15 rounded-lg border border-emerald-200/20 text-emerald-600 dark:bg-emerald-950/10 dark:text-emerald-400">
-                      <span className="block text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-1.5">+ AI Recommendation</span>
-                      {opt.optimized}
-                    </div>
-                  </div>
-
-                  {/* Explanation context */}
-                  <p className="text-xxs text-text-secondary flex items-start gap-1 leading-normal">
-                    <IoSparklesOutline className="shrink-0 text-brand-purple mt-0.5" />
-                    <span><strong>Impact logic:</strong> {opt.impact}</span>
-                  </p>
-                </div>
-              ))
             )}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Results — uploaded & analysed */}
+      {hasResume && (
+        <>
+          {/* File info banner */}
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-200/50 bg-emerald-50/50 dark:bg-emerald-950/10 dark:border-emerald-800/30 px-4 py-3">
+            <IoShieldCheckmarkOutline size={18} className="text-emerald-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 truncate">{fileName}</p>
+              <p className="text-xs text-emerald-600/70 dark:text-emerald-500/70">{fileSize} · Analysis complete</p>
+            </div>
+            <IoCheckmarkCircle size={18} className="text-emerald-500 shrink-0" />
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 p-1 rounded-xl bg-surface border border-border-primary">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-bg-secondary text-text-primary shadow-sm'
+                    : 'text-text-tertiary hover:text-text-secondary'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {/* ── ATS Score tab ── */}
+            {activeTab === 'score' && (
+              <motion.div key="score" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+                <div className="grid lg:grid-cols-12 gap-5">
+                  {/* Ring */}
+                  <div className="lg:col-span-4 rounded-2xl border border-border-primary bg-bg-secondary p-6 flex flex-col items-center gap-4">
+                    <ProgressRing
+                      value={atsScore}
+                      size={150}
+                      strokeWidth={11}
+                      color={scoreColor}
+                      label={`${atsScore}%`}
+                      sublabel="ATS SCORE"
+                    />
+                    <div className="text-center">
+                      <Badge color={atsScore >= 85 ? 'green' : atsScore >= 70 ? 'blue' : 'amber'}>
+                        {atsScore >= 85 ? 'Excellent match' : atsScore >= 70 ? 'Good — apply suggestions' : 'Needs improvement'}
+                      </Badge>
+                      <p className="text-xs text-text-tertiary mt-2 leading-relaxed">
+                        Apply all suggestions to reach <strong className="text-text-primary">98%</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Strengths + Missing */}
+                  <div className="lg:col-span-8 space-y-4">
+                    {/* Strengths */}
+                    {atsAnalysis?.strengths?.length > 0 && (
+                      <div className="rounded-2xl border border-emerald-200/40 bg-emerald-50/30 dark:bg-emerald-950/10 dark:border-emerald-800/20 p-5 space-y-3">
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                          <IoCheckmarkCircle size={14} /> Strengths detected
+                        </p>
+                        <ul className="space-y-1.5">
+                          {atsAnalysis.strengths.map(s => (
+                            <li key={s} className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                              <span className="h-1 w-1 rounded-full bg-emerald-500 shrink-0" />
+                              {s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Missing keywords */}
+                    {atsAnalysis?.missingKeywords?.length > 0 && (
+                      <div className="rounded-2xl border border-amber-200/40 bg-amber-50/30 dark:bg-amber-950/10 dark:border-amber-800/20 p-5 space-y-3">
+                        <p className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                          <IoAlertCircleOutline size={14} /> Missing high-demand keywords
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {atsAnalysis.missingKeywords.map(kw => (
+                            <span key={kw} className="inline-flex items-center gap-1 rounded-lg border border-amber-200/50 bg-amber-50 dark:bg-amber-950/20 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                              + {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Improvement tips */}
+                    {atsAnalysis?.improvements?.length > 0 && (
+                      <div className="rounded-2xl border border-border-primary bg-bg-secondary p-5 space-y-2">
+                        <p className="text-xs font-bold text-text-secondary flex items-center gap-2">
+                          <IoTrendingUpOutline size={14} /> Improvement tips
+                        </p>
+                        <ul className="space-y-1.5">
+                          {atsAnalysis.improvements.map(tip => (
+                            <li key={tip} className="flex items-start gap-2 text-xs text-text-secondary leading-relaxed">
+                              <span className="h-1 w-1 rounded-full bg-text-tertiary shrink-0 mt-1.5" />
+                              {tip}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quiz prompt */}
+                {generatedQuizQuestions.length > 0 && (
+                  <div className="rounded-2xl border border-brand-purple/20 bg-brand-purple/5 p-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">
+                        {generatedQuizQuestions.length} personalised quiz questions ready
+                      </p>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Questions generated from your extracted resume skills.
+                      </p>
+                    </div>
+                    <Link to="/quiz">
+                      <Button size="sm" variant="outline" rightIcon={<IoArrowForwardOutline size={14} />}>
+                        Take quiz
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ── Skills tab ── */}
+            {activeTab === 'skills' && extractedSkills && (
+              <motion.div key="skills" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="rounded-2xl border border-border-primary bg-bg-secondary p-6 space-y-6"
+              >
+                <p className="text-sm text-text-secondary">
+                  {Object.values(extractedSkills).flat().length} skills extracted from your resume.
+                </p>
+                <SkillSection icon={IoCodeSlashOutline} title="Programming Languages" skills={extractedSkills.languages} color="text-brand-blue" />
+                <SkillSection icon={IoLayersOutline} title="Frameworks & Libraries" skills={extractedSkills.frameworks} color="text-brand-purple" />
+                <SkillSection icon={IoConstructOutline} title="Tools & Technologies" skills={extractedSkills.tools} color="text-brand-orange" />
+                <SkillSection icon={IoSchoolOutline} title="Soft Skills & Practices" skills={extractedSkills.soft} color="text-brand-emerald" />
+              </motion.div>
+            )}
+
+            {/* ── Optimizations tab ── */}
+            {activeTab === 'optimize' && (
+              <motion.div key="optimize" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-text-secondary">
+                    {optimizations.filter(o => o.applied).length} of {optimizations.length} suggestions applied.
+                    {optimizations.filter(o => o.applied).length > 0 && (
+                      <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-medium">+{optimizations.filter(o => o.applied).length * 6}% ATS boost</span>
+                    )}
+                  </p>
+                </div>
+
+                {optimizations.map(opt => (
+                  <div
+                    key={opt.id}
+                    className={`rounded-2xl border p-5 space-y-4 transition-all ${
+                      opt.applied ? 'border-emerald-200/40 bg-emerald-50/20 dark:bg-emerald-950/5 dark:border-emerald-800/20 opacity-75' : 'border-border-primary bg-bg-secondary'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <Badge color="purple">{opt.section}</Badge>
+                      {opt.applied ? (
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          <IoCheckmarkCircle size={15} /> Applied
+                        </span>
+                      ) : (
+                        <Button size="xs" onClick={() => handleApply(opt.id)}>
+                          Apply suggestion
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Red/green diff */}
+                    <div className="grid md:grid-cols-2 gap-3 font-mono text-xs">
+                      <div className="rounded-xl border border-red-200/30 bg-red-50/20 dark:bg-red-950/10 dark:border-red-800/20 p-3 space-y-1.5">
+                        <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">— Original</p>
+                        <p className="text-red-700 dark:text-red-300 leading-relaxed">{opt.original}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-200/30 bg-emerald-50/20 dark:bg-emerald-950/10 dark:border-emerald-800/20 p-3 space-y-1.5">
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">+ AI Optimised</p>
+                        <p className="text-emerald-700 dark:text-emerald-300 leading-relaxed">{opt.optimized}</p>
+                      </div>
+                    </div>
+
+                    <p className="flex items-start gap-2 text-xs text-text-secondary">
+                      <IoSparklesOutline className="text-brand-purple shrink-0 mt-0.5" size={12} />
+                      <span><strong>Why this helps:</strong> {opt.impact}</span>
+                    </p>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
     </div>
   );
 }

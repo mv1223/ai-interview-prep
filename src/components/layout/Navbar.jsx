@@ -2,177 +2,218 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { IoSunnyOutline, IoMoonOutline, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  IoSunnyOutline, IoMoonOutline, IoMenuOutline, IoCloseOutline,
+  IoPersonCircleOutline, IoLogOutOutline, IoSettingsOutline,
+} from 'react-icons/io5';
 
 export default function Navbar() {
-  const { user, logout, setAuthModalOpen, setAuthModalTab } = useAuth();
+  const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isDashboard = location.pathname.startsWith('/dashboard') || 
-                      location.pathname.startsWith('/interview') || 
-                      location.pathname.startsWith('/resume') || 
-                      location.pathname.startsWith('/roadmap') || 
-                      location.pathname.startsWith('/settings');
+  const isApp = ['/dashboard', '/interview', '/resume', '/quiz', '/roadmap', '/settings', '/progress'].some(
+    p => location.pathname.startsWith(p)
+  );
 
-  const handleAuthAction = (tab) => {
-    setAuthModalTab(tab);
-    setAuthModalOpen(true);
-    setMobileMenuOpen(false);
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+    setProfileOpen(false);
   };
 
-  return (
-    <nav className="sticky top-0 z-40 border-b border-border-primary/80 bg-bg-secondary/80 backdrop-blur-md text-text-primary transition-colors duration-300">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-2 font-heading text-lg font-bold text-text-primary">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-brand-blue to-brand-purple text-white shadow-premium">
-                I
-              </span>
-              <span>InterviewAI <span className="text-gradient">Pro</span></span>
-            </Link>
-          </div>
+  const navLinks = [
+    { label: 'Features', href: '#features' },
+    { label: 'Demo', href: '#demo' },
+    { label: 'Pricing', href: '#pricing' },
+  ];
 
-          {/* Desktop Nav links */}
-          {!isDashboard && (
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
-              <a href="#features" className="hover:text-brand-blue transition-colors">Features</a>
-              <a href="#demo" className="hover:text-brand-blue transition-colors">Interactive Demo</a>
-              <a href="#pricing" className="hover:text-brand-blue transition-colors">Pricing</a>
+  return (
+    <nav className="sticky top-0 z-50 border-b border-border-primary/70 bg-bg-secondary/85 backdrop-blur-xl transition-colors duration-200">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+
+          {/* Logo */}
+          <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2.5 shrink-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue to-brand-purple text-white text-sm font-bold shadow-sm font-heading">
+              I
+            </div>
+            <span className="font-heading font-bold text-base text-text-primary hidden sm:block">
+              InterviewAI <span className="text-gradient">Pro</span>
+            </span>
+          </Link>
+
+          {/* Desktop landing nav links */}
+          {!isApp && (
+            <div className="hidden md:flex items-center gap-7">
+              {navLinks.map(link => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  {link.label}
+                </a>
+              ))}
             </div>
           )}
 
-          {/* Right Action buttons */}
-          <div className="hidden md:flex items-center gap-4">
-            {/* Theme Toggle */}
+          {/* Right section */}
+          <div className="flex items-center gap-2.5">
+            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              className="rounded-full p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
+              className="rounded-xl p-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
               aria-label="Toggle theme"
             >
-              {isDark ? <IoSunnyOutline size={20} /> : <IoMoonOutline size={20} />}
+              {isDark ? <IoSunnyOutline size={19} /> : <IoMoonOutline size={19} />}
             </button>
 
             {user ? (
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/dashboard"
-                  className="rounded-lg bg-text-primary px-4 py-2 text-sm font-semibold text-bg-secondary hover:opacity-90 transition-all"
-                >
-                  Dashboard
-                </Link>
-                <button
-                  onClick={() => { logout(); navigate('/'); }}
-                  className="rounded-lg border border-border-primary px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
-                >
-                  Log Out
-                </button>
-              </div>
+              <>
+                {/* User avatar + dropdown */}
+                <div className="relative hidden md:block">
+                  <button
+                    onClick={() => setProfileOpen(o => !o)}
+                    className="flex items-center gap-2 rounded-xl border border-border-primary bg-surface px-2.5 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer"
+                  >
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
+                    <span className="text-sm font-medium text-text-primary max-w-[120px] truncate">
+                      {user.name.split(' ')[0]}
+                    </span>
+                  </button>
+
+                  <AnimatePresence>
+                    {profileOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-11 z-20 w-56 rounded-2xl border border-border-primary bg-bg-secondary shadow-lg py-2 overflow-hidden"
+                        >
+                          <div className="px-4 py-3 border-b border-border-primary">
+                            <p className="text-sm font-semibold text-text-primary truncate">{user.name}</p>
+                            <p className="text-xs text-text-tertiary truncate mt-0.5">{user.email}</p>
+                          </div>
+                          <div className="p-1.5 space-y-0.5">
+                            <Link
+                              to="/settings"
+                              onClick={() => setProfileOpen(false)}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
+                            >
+                              <IoSettingsOutline size={16} /> Settings
+                            </Link>
+                            <Link
+                              to="/settings"
+                              onClick={() => setProfileOpen(false)}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
+                            >
+                              <IoPersonCircleOutline size={16} /> Profile
+                            </Link>
+                          </div>
+                          <div className="p-1.5 border-t border-border-primary">
+                            <button
+                              onClick={handleLogout}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-danger hover:bg-danger/5 transition-colors cursor-pointer"
+                            >
+                              <IoLogOutOutline size={16} /> Sign out
+                            </button>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleAuthAction('login')}
-                  className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover/80 rounded-lg transition-colors cursor-pointer"
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-xl transition-colors"
                 >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => handleAuthAction('signup')}
-                  className="rounded-lg bg-text-primary px-4 py-2 text-sm font-semibold text-bg-secondary hover:opacity-90 transition-all cursor-pointer"
+                  Sign in
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4 py-2 text-sm font-semibold bg-text-primary text-bg-secondary rounded-xl hover:opacity-90 transition-opacity shadow-sm"
                 >
-                  Sign Up Free
-                </button>
+                  Get started free
+                </Link>
               </div>
             )}
-          </div>
 
-          {/* Mobile menu button */}
-          <div className="flex md:hidden items-center gap-2">
+            {/* Mobile hamburger */}
             <button
-              onClick={toggleTheme}
-              className="rounded-full p-2 text-text-secondary hover:bg-surface-hover transition-colors"
+              onClick={() => setMobileOpen(o => !o)}
+              className="md:hidden rounded-xl p-2 text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+              aria-label="Menu"
             >
-              {isDark ? <IoSunnyOutline size={20} /> : <IoMoonOutline size={20} />}
-            </button>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="rounded-lg p-2 text-text-secondary hover:bg-surface-hover transition-colors"
-            >
-              {mobileMenuOpen ? <IoCloseOutline size={24} /> : <IoMenuOutline size={24} />}
+              {mobileOpen ? <IoCloseOutline size={22} /> : <IoMenuOutline size={22} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border-primary bg-bg-secondary px-4 py-4 space-y-3">
-          {!isDashboard && (
-            <>
-              <a
-                href="#features"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 text-sm font-medium text-text-secondary hover:text-text-primary"
-              >
-                Features
-              </a>
-              <a
-                href="#demo"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 text-sm font-medium text-text-secondary hover:text-text-primary"
-              >
-                Interactive Demo
-              </a>
-              <a
-                href="#pricing"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-2 text-sm font-medium text-text-secondary hover:text-text-primary"
-              >
-                Pricing
-              </a>
-            </>
-          )}
-
-          <div className="pt-2 border-t border-border-primary/80">
-            {user ? (
-              <div className="space-y-2">
-                <Link
-                  to="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-center rounded-lg bg-text-primary py-2.5 text-sm font-semibold text-bg-secondary"
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden overflow-hidden border-t border-border-primary bg-bg-secondary"
+          >
+            <div className="px-4 py-4 space-y-1">
+              {!isApp && navLinks.map(link => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2.5 rounded-xl text-sm font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
                 >
-                  Dashboard
-                </Link>
-                <button
-                  onClick={() => { logout(); setMobileMenuOpen(false); navigate('/'); }}
-                  className="w-full text-center rounded-lg border border-border-primary py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-hover transition-colors"
-                >
-                  Log Out
-                </button>
+                  {link.label}
+                </a>
+              ))}
+              <div className="pt-2 border-t border-border-primary space-y-1">
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full" />
+                      <div>
+                        <p className="text-sm font-semibold text-text-primary">{user.name}</p>
+                        <p className="text-xs text-text-tertiary">{user.email}</p>
+                      </div>
+                    </div>
+                    <Link to="/settings" onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:bg-surface-hover">Settings</Link>
+                    <button onClick={() => { handleLogout(); setMobileOpen(false); }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-danger hover:bg-danger/5 cursor-pointer">Sign out</button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2.5 rounded-xl text-sm font-medium text-text-secondary hover:bg-surface-hover">Sign in</Link>
+                    <Link to="/register" onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2.5 rounded-xl text-sm font-semibold text-center bg-text-primary text-bg-secondary mt-1">Get started free</Link>
+                  </>
+                )}
               </div>
-            ) : (
-              <div className="space-y-2">
-                <button
-                  onClick={() => handleAuthAction('login')}
-                  className="w-full text-center rounded-lg border border-border-primary py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-hover transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => handleAuthAction('signup')}
-                  className="w-full text-center rounded-lg bg-text-primary py-2.5 text-sm font-semibold text-bg-secondary"
-                >
-                  Sign Up Free
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

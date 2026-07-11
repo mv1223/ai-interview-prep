@@ -1,98 +1,191 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 
 const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return null;
-      }
-    }
+const STORAGE_KEY = 'interviewai_user';
+
+function loadUser() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
     return null;
-  });
+  }
+}
 
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState('login'); // 'login' | 'signup'
+function saveUser(user) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+}
 
-  const login = (email) => {
-    const mockUser = {
-      name: email.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-      email: email,
-      role: 'Software Engineer',
-      company: 'Stripe',
-      isPremium: true,
-      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-      onboardingCompleted: true, // Bypass onboarding for demo fast path
-    };
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    setAuthModalOpen(false);
-  };
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(loadUser);
 
-  const signup = (name, email, college, dob, age, phone, gender, avatarUrl) => {
-    const defaultAvatar = gender === 'Female'
-      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
+  // ─── Auth actions ────────────────────────────────────────────────────────
+  const login = useCallback((email, password) => {
+    // Simulate login - returns a promise for loading state handling
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (!email) { reject(new Error('Email is required')); return; }
+        if (!password || password.length < 6) { reject(new Error('Invalid credentials')); return; }
 
-    const mockUser = {
-      name,
-      email,
-      college,
-      dob,
-      age,
-      phone,
-      gender,
-      role: 'Frontend Developer Candidate',
-      company: 'Placement Prep',
-      isPremium: true,
-      avatarUrl: avatarUrl || defaultAvatar,
-      onboardingCompleted: false, // Force onboarding for new registrations
-    };
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    setAuthModalOpen(false);
-  };
+        const firstName = email.split('@')[0].split(/[._-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        const newUser = {
+          id: 'user-' + Date.now(),
+          name: firstName,
+          email,
+          role: 'Software Engineer',
+          company: '',
+          college: '',
+          phone: '',
+          dob: '',
+          age: '',
+          gender: 'Male',
+          avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(email)}&backgroundColor=b6e3f4`,
+          isPremium: false,
+          onboardingCompleted: true,
+          emailVerified: true,
+          createdAt: new Date().toISOString(),
+          careerGoal: 'Frontend',
+          experienceLevel: 'Junior',
+          targetCompanies: [],
+        };
+        setUser(newUser);
+        saveUser(newUser);
+        resolve(newUser);
+      }, 1200);
+    });
+  }, []);
 
-  const logout = () => {
+  const register = useCallback((data) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const { name, email, password, college, dob, phone, gender } = data;
+        if (!name || !email || !password) { reject(new Error('All fields are required')); return; }
+        if (password.length < 8) { reject(new Error('Password must be at least 8 characters')); return; }
+
+        // Calculate age from DOB
+        let age = '';
+        if (dob) {
+          const today = new Date();
+          const birth = new Date(dob);
+          let a = today.getFullYear() - birth.getFullYear();
+          const m = today.getMonth() - birth.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) a--;
+          age = a >= 0 ? String(a) : '';
+        }
+
+        const newUser = {
+          id: 'user-' + Date.now(),
+          name,
+          email,
+          role: 'Frontend Developer Candidate',
+          company: '',
+          college: college || '',
+          phone: phone || '',
+          dob: dob || '',
+          age,
+          gender: gender || 'Male',
+          avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(name)}&backgroundColor=b6e3f4`,
+          isPremium: false,
+          onboardingCompleted: false, // triggers onboarding flow
+          emailVerified: false, // triggers email verification
+          pendingVerificationEmail: email,
+          createdAt: new Date().toISOString(),
+          careerGoal: 'Frontend',
+          experienceLevel: 'Junior',
+          targetCompanies: [],
+        };
+        setUser(newUser);
+        saveUser(newUser);
+        resolve(newUser);
+      }, 1400);
+    });
+  }, []);
+
+  const verifyEmail = useCallback(() => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        setUser(prev => {
+          if (!prev) return null;
+          const updated = { ...prev, emailVerified: true };
+          saveUser(updated);
+          return updated;
+        });
+        resolve();
+      }, 800);
+    });
+  }, []);
+
+  const resendVerification = useCallback(() => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
+  }, []);
+
+  const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem('user');
-  };
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
 
-  const updateProfile = (updatedData) => {
-    setUser((prev) => {
-      const newUser = { ...prev, ...updatedData };
-      localStorage.setItem('user', JSON.stringify(newUser));
-      return newUser;
-    });
-  };
-
-  const completeOnboarding = (onboardingData) => {
-    setUser((prev) => {
+  const updateProfile = useCallback((data) => {
+    setUser(prev => {
       if (!prev) return null;
-      const newUser = { ...prev, ...onboardingData, onboardingCompleted: true };
-      localStorage.setItem('user', JSON.stringify(newUser));
-      return newUser;
+      const updated = { ...prev, ...data };
+      saveUser(updated);
+      return updated;
     });
-  };
+  }, []);
+
+  const completeOnboarding = useCallback((data) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...data, onboardingCompleted: true };
+      saveUser(updated);
+      return updated;
+    });
+  }, []);
+
+  const updateAvatar = useCallback((url) => {
+    updateProfile({ avatarUrl: url });
+  }, [updateProfile]);
+
+  // ─── Password reset simulation ───────────────────────────────────────────
+  const sendPasswordReset = useCallback((email) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (!email) { reject(new Error('Email is required')); return; }
+        resolve();
+      }, 1200);
+    });
+  }, []);
+
+  const resetPassword = useCallback((token, newPassword) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (!token || !newPassword) { reject(new Error('Invalid request')); return; }
+        if (newPassword.length < 8) { reject(new Error('Password must be at least 8 characters')); return; }
+        resolve();
+      }, 1000);
+    });
+  }, []);
 
   return (
     <AuthContext.Provider value={{
       user,
+      isAuthenticated: !!user,
+      isEmailVerified: user?.emailVerified ?? false,
+      hasCompletedOnboarding: user?.onboardingCompleted ?? false,
       login,
-      signup,
+      register,
       logout,
+      verifyEmail,
+      resendVerification,
       updateProfile,
       completeOnboarding,
-      authModalOpen,
-      setAuthModalOpen,
-      authModalTab,
-      setAuthModalTab,
-      isAuthenticated: !!user,
+      updateAvatar,
+      sendPasswordReset,
+      resetPassword,
     }}>
       {children}
     </AuthContext.Provider>
@@ -100,9 +193,7 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }

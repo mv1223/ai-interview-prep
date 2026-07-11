@@ -1,17 +1,163 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const InterviewContext = createContext();
 
-export function InterviewProvider({ children }) {
-  const [interviews, setInterviews] = useState(() => {
-    const saved = localStorage.getItem('interviews');
-    return saved ? JSON.parse(saved) : [];
+// ─── Interview question generator (resume-aware) ──────────────────────────────
+function generateInterviewQuestions(skills, role, company, jobDescription) {
+  const allSkills = skills
+    ? [...(skills.languages || []), ...(skills.frameworks || []), ...(skills.tools || [])]
+    : [];
+  const topSkills = allSkills.slice(0, 3).join(', ') || 'modern web technologies';
+  const jdLower = (jobDescription || '').toLowerCase();
+
+  let codingChallenge = 'useDebounce';
+  let codeTemplate = `/**
+ * Implement a useDebounce custom hook
+ * Delays updating the output value until the delay has passed
+ *
+ * @param {any} value - The value to debounce
+ * @param {number} delay - Delay in milliseconds
+ * @returns {any} debounced value
+ */
+import { useState, useEffect } from 'react';
+
+export function useDebounce(value, delay) {
+  // TODO: implement here
+
+}`;
+  let codingTip = 'Use useEffect with setTimeout. Remember to return a cleanup that calls clearTimeout.';
+
+  const isBackend = jdLower.includes('backend') || jdLower.includes('python')
+    || jdLower.includes('java') || jdLower.includes('node') || jdLower.includes('api')
+    || (skills && (skills.languages || []).some(l => ['Python', 'Java', 'Go', 'Rust'].includes(l)));
+
+  if (isBackend) {
+    codingChallenge = 'twoSum';
+    codeTemplate = `/**
+ * Two Sum
+ * Return indices of two numbers in 'nums' that add up to 'target'.
+ * Aim for O(n) time complexity.
+ *
+ * @param {number[]} nums
+ * @param {number} target
+ * @return {number[]}
+ */
+function twoSum(nums, target) {
+  // TODO: implement here
+
+}`;
+    codingTip = 'Use a Map (hash map) to store each number and its index. For each element, check if (target - element) already exists in the map.';
+  }
+
+  return [
+    {
+      id: 'q1',
+      type: 'conceptual',
+      question: `You're interviewing for the ${role} role at ${company}. Based on your experience with ${topSkills}, walk me through how you would design a scalable, maintainable frontend architecture for a large product. What patterns, performance trade-offs, and DX decisions would you make?`,
+      tip: 'Cover: component architecture, state management choice, performance strategy (code splitting, lazy loading), and testing approach. Be specific — mention real tools you\'ve used.',
+    },
+    {
+      id: 'q2',
+      type: 'technical_code',
+      question: `Solid answer. Let's move to a hands-on coding challenge. Please implement the \`${codingChallenge}\` function in the editor. When you're done, run the test cases and explain your time and space complexity.`,
+      codingQuestion: codingChallenge,
+      templateCode: codeTemplate,
+      tip: codingTip,
+    },
+    {
+      id: 'q3',
+      type: 'behavioral',
+      question: `${company} values engineers who thrive under ambiguity. Describe a project where you faced a major technical challenge or a critical bug close to a deadline. How did you diagnose, communicate, and resolve it? What did you learn?`,
+      tip: 'Use the STAR framework: Situation → Task → Action → Result. Quantify your impact (e.g., "fixed a memory leak that reduced bounce rate by 12%"). Show ownership and proactive communication.',
+    },
+  ];
+}
+
+// ─── Score calculator ─────────────────────────────────────────────────────────
+function calculateInterviewScore(userAnswers, testStatus, questions) {
+  if (userAnswers.length === 0) {
+    return { overall: 0, communication: 0, technical: 0, problemSolving: 0, behavioral: 0, feedback: 'No answers were provided during this session.' };
+  }
+
+  let communication = 15;
+  let technical = 15;
+  let problemSolving = 15;
+  let behavioral = 15;
+
+  const fullText = userAnswers.map(a => a.text || '').join(' ').toLowerCase();
+  const avgLen = userAnswers.reduce((s, a) => s + (a.text || '').length, 0) / userAnswers.length;
+
+  // Length / articulation scoring
+  if (avgLen > 200) { communication += 45; behavioral += 40; }
+  else if (avgLen > 80) { communication += 25; behavioral += 20; }
+  else if (avgLen > 30) { communication += 10; behavioral += 8; }
+
+  // Keyword scoring
+  const techKeywords = ['architecture', 'component', 'state', 'performance', 'scalable', 'optimization', 'hook', 'async', 'complexity', 'pattern', 'api', 'cache', 'test', 'deploy'];
+  const starKeywords = ['situation', 'task', 'action', 'result', 'challenge', 'learned', 'team', 'impact', 'metrics', 'deadline'];
+  techKeywords.forEach(kw => { if (fullText.includes(kw)) { technical += 4; communication += 2; } });
+  starKeywords.forEach(kw => { if (fullText.includes(kw)) { behavioral += 5; communication += 3; } });
+
+  // Coding test scoring
+  if (testStatus === 'passed') { technical += 38; problemSolving += 42; }
+  else if (testStatus === 'failed') { technical += 8; problemSolving += 5; }
+  else { technical += 3; problemSolving += 3; } // no attempt
+
+  // Clamp
+  communication = Math.min(Math.max(communication, 5), 98);
+  technical = Math.min(Math.max(technical, 5), 98);
+  problemSolving = Math.min(Math.max(problemSolving, 5), 98);
+  behavioral = Math.min(Math.max(behavioral, 5), 98);
+
+  const overall = Math.round((communication + technical + problemSolving + behavioral) / 4);
+
+  let feedback;
+  if (overall >= 80) {
+    feedback = 'Excellent performance! Strong technical depth, clear communication, and well-structured behavioral answers. You demonstrated solid engineering judgment and real-world problem-solving skills.';
+  } else if (overall >= 60) {
+    feedback = 'Good performance overall. Technical understanding is solid, but consider deepening your answers with concrete metrics and examples. Practice the STAR method for behavioral questions.';
+  } else if (overall >= 40) {
+    feedback = 'Moderate performance. Answers need more depth and specific examples. Focus on quantifying your impact and expanding your technical explanations with architecture-level thinking.';
+  } else {
+    feedback = 'This session needs improvement. Aim for detailed, structured answers (aim for 2-4 sentences minimum per response). Complete the coding challenges and use the STAR framework for behavioral questions.';
+  }
+
+  const qaReviews = questions.map((q, i) => {
+    const userAnswer = userAnswers[i];
+    const userText = userAnswer?.text || 'No answer provided.';
+    const userCode = userAnswer?.code || null;
+
+    let idealAnswer, coachScore, coachFeedback;
+    if (q.type === 'technical_code') {
+      idealAnswer = 'Ideal solution should compile all test cases, use optimal time/space complexity (O(n) for twoSum via HashMap, or proper cleanup in useDebounce via useEffect), and be explained clearly.';
+      coachScore = testStatus === 'passed' ? 96 : testStatus === 'failed' ? 25 : 10;
+      coachFeedback = testStatus === 'passed'
+        ? 'All test cases compiled. Excellent implementation with correct complexity analysis.'
+        : 'Test cases did not pass. Review the solution approach and ensure proper return logic.';
+    } else if (q.type === 'conceptual') {
+      coachScore = Math.min(15 + Math.floor(userText.length / 4), 95);
+      idealAnswer = 'A strong answer covers: component hierarchy decisions, state management patterns (local vs global), performance optimizations (memoization, code splitting, lazy loading), and testing strategy.';
+      coachFeedback = userText.length > 120 ? 'Good depth. Consider adding specific metrics or tool choices.' : 'Answer needs more depth — expand on your specific architectural decisions.';
+    } else {
+      coachScore = Math.min(15 + Math.floor(userText.length / 3.5), 95);
+      idealAnswer = 'Use STAR format: specific situation, your concrete task/role, the actions you took (with technical detail), and the measurable result. Include what you learned.';
+      coachFeedback = userText.length > 150 ? 'Good structure. Next time add specific quantifiable results.' : 'Use the STAR framework and include specific numbers (time saved, users affected, etc.).';
+    }
+
+    return { question: q.question, userAnswer: userText, userCode, idealAnswer, coachScore, coachFeedback };
   });
 
+  return { overall, communication, technical, problemSolving, behavioral, feedback, qaReviews };
+}
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+export function InterviewProvider({ children }) {
+  const [interviews, setInterviews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('interviews') || '[]'); } catch { return []; }
+  });
   const [quizzes, setQuizzes] = useState(() => {
-    const saved = localStorage.getItem('quizzes');
-    return saved ? JSON.parse(saved) : [];
+    try { return JSON.parse(localStorage.getItem('quizzes') || '[]'); } catch { return []; }
   });
 
   const [activeInterview, setActiveInterview] = useState(null);
@@ -19,323 +165,163 @@ export function InterviewProvider({ children }) {
   const [chatHistory, setChatHistory] = useState([]);
   const [codeAnswer, setCodeAnswer] = useState('');
   const [isAiResponding, setIsAiResponding] = useState(false);
-  const [interviewStatus, setInterviewStatus] = useState('idle'); // 'idle' | 'setting_up' | 'active' | 'review'
-
-  // Code editor terminal status
-  const [testCasesStatus, setTestCasesStatus] = useState('idle'); // 'idle' | 'running' | 'passed' | 'failed'
+  const [interviewStatus, setInterviewStatus] = useState('idle');
+  const [testCasesStatus, setTestCasesStatus] = useState('idle');
   const [consoleLogs, setConsoleLogs] = useState([]);
+  const [interviewTimer, setInterviewTimer] = useState(0);
 
+  useEffect(() => { localStorage.setItem('interviews', JSON.stringify(interviews)); }, [interviews]);
+  useEffect(() => { localStorage.setItem('quizzes', JSON.stringify(quizzes)); }, [quizzes]);
+
+  // Live interview timer
   useEffect(() => {
-    localStorage.setItem('interviews', JSON.stringify(interviews));
-  }, [interviews]);
-
-  useEffect(() => {
-    localStorage.setItem('quizzes', JSON.stringify(quizzes));
-  }, [quizzes]);
-
-  // Helper generator compiling JD parameters
-  const generateQuestions = (role, company, jd) => {
-    const lowercaseJd = (jd || '').toLowerCase();
-    
-    let techTopic = 'React 19 Server Actions';
-    let codingQuestion = 'useDebounce';
-    let templateCode = `/**
- * Custom React Hook: useDebounce
- * Complete the hook below:
- */
-import { useState, useEffect } from 'react';
-
-export function useDebounce(value, delay) {
-  // Write your code here
-  
-}`;
-    let codingTip = "Think about useEffect, setTimeout, and returning a cleanup function that calls clearTimeout when the value or delay changes.";
-
-    if (
-      lowercaseJd.includes('python') || 
-      lowercaseJd.includes('java') || 
-      lowercaseJd.includes('c++') || 
-      lowercaseJd.includes('database') || 
-      lowercaseJd.includes('backend') || 
-      lowercaseJd.includes('node') ||
-      lowercaseJd.includes('sql')
-    ) {
-      techTopic = 'REST API Gateways and Database Optimization';
-      codingQuestion = 'twoSum';
-      templateCode = `/**
- * Two Sum Solution
- * Output indices of elements that sum up to target in O(N) time.
- */
-function twoSum(nums, target) {
-  // Write your code here
-  
-}`;
-      codingTip = "Use a Map/dict to store complement values. This optimizes lookups to O(1) time complexity.";
+    let iv;
+    if (interviewStatus === 'active') {
+      iv = setInterval(() => setInterviewTimer(t => t + 1), 1000);
     }
+    return () => clearInterval(iv);
+  }, [interviewStatus]);
 
-    if (lowercaseJd.includes('tailwind') || lowercaseJd.includes('css') || lowercaseJd.includes('accessibility') || lowercaseJd.includes('html')) {
-      techTopic = 'Core UI Accessibility (WCAG 2.1) and Fluid Layout Gaps';
-    }
-
-    return [
-      {
-        id: 'q1',
-        question: `Looking closely at the job description for the ${role} position at ${company}, it outlines requirements for ${techTopic}. How would you design a scalable system utilizing these technologies, and what major latency trade-offs would you expect?`,
-        type: 'conceptual',
-        tip: `Focus on the tech keywords in your answer. Structure your explanation around separation of concerns, scalability bottlenecks, and concrete metrics.`
-      },
-      {
-        id: 'q2',
-        question: `Great. Let's do a quick coding assessment. Please implement the \`${codingQuestion}\` function in the editor. Explain the space and time complexity when you run tests.`,
-        type: 'technical_code',
-        codingQuestion,
-        templateCode,
-        tip: codingTip
-      },
-      {
-        id: 'q3',
-        question: `Finally, let's look at behavioral fit. ${company} emphasizes performance and high collaboration. Can you detail a project matching the job description parameters where you encountered a technical regression, and how you communicated with the team to ship a hotfix?`,
-        type: 'behavioral',
-        tip: "Structure using the STAR framework. Address the impact (e.g. reduced bounce rate by 5%), clear debugging pipelines, and collaborative code reviews."
-      }
-    ];
-  };
-
-  const startNewInterview = (config) => {
+  // ── start ──
+  const startNewInterview = useCallback((config) => {
     setInterviewStatus('setting_up');
-    
-    // Dynamically compile questions based on job description!
-    const questions = generateQuestions(config.role, config.company, config.jobDescription);
+    setInterviewTimer(0);
 
-    const newSession = {
+    const questions = generateInterviewQuestions(
+      config.extractedSkills || null,
+      config.role,
+      config.company,
+      config.jobDescription
+    );
+
+    const session = {
       id: 'session-' + Date.now(),
       role: config.role,
-      company: config.company,
+      company: config.company || 'Global Tech Corp',
       difficulty: config.difficulty || 'Medium',
       jobDescription: config.jobDescription || '',
       questions,
     };
 
-    setActiveInterview(newSession);
+    setActiveInterview(session);
     setCurrentQuestionIndex(0);
-    setCodeAnswer(questions[0].type === 'technical_code' ? questions[0].templateCode : '');
+    setCodeAnswer(questions[0]?.templateCode || '');
     setTestCasesStatus('idle');
     setConsoleLogs([]);
-    
-    // AI opening statement
-    const openingMsg = {
+
+    setChatHistory([{
       sender: 'interviewer',
-      text: `Hello! Welcome to your simulated interview for the ${config.role} position here at ${config.company}. I'm your AI recruiter today. We'll go through ${questions.length} questions, covering both conceptual knowledge and coding. Let's get started with the first question: ${questions[0].question}`,
+      text: `Hello and welcome to your mock interview for the ${session.role} position at ${session.company}!\n\nI'm your AI interviewer. We'll cover ${questions.length} questions — technical depth, hands-on coding, and behavioral scenarios. Take your time and think through each answer.\n\nLet's begin:\n\n${questions[0].question}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+    }]);
 
-    setChatHistory([openingMsg]);
-    setInterviewStatus('active');
-  };
+    setTimeout(() => setInterviewStatus('active'), 150);
+  }, []);
 
-  // Interactive Code Evaluator Terminal
-  const runCode = (code, questionType) => {
+  // ── run code ──
+  const runCode = useCallback((code, questionType) => {
     setTestCasesStatus('running');
-    setConsoleLogs(['[system] Initializing compiler sandbox environment...', '[system] Compiling workspace...']);
+    setConsoleLogs(['> Initializing sandbox...', '> Compiling...']);
 
     setTimeout(() => {
-      const normalizedCode = code.replace(/\s+/g, '');
-      let logs;
-      let passed = false;
+      const norm = code.replace(/\s+/g, '').toLowerCase();
+      let logs, passed;
 
       if (questionType === 'twoSum') {
-        // Validate twoSum logic
-        // Expect index maps lookup, complement matching, or nested loops return indices
-        const hasHashmap = normalizedCode.includes('Map') || normalizedCode.includes('newMap') || normalizedCode.includes('{}') || normalizedCode.includes('constmap');
-        const hasReturn = normalizedCode.includes('return') && (normalizedCode.includes('[') || normalizedCode.includes('map.get'));
-        
-        if (hasHashmap && hasReturn) {
-          logs = [
-            'Test Case 1: nums = [2,7,11,15], target = 9 -> Result: [0, 1] ... PASSED',
-            'Test Case 2: nums = [3,2,4], target = 6 -> Result: [1, 2] ... PASSED',
-            '[success] All test cases passed successfully!'
-          ];
-          passed = true;
-        } else {
-          logs = [
-            'Test Case 1: nums = [2,7,11,15], target = 9 -> Expected [0,1], but got null ... FAILED',
-            'Test Case 2: nums = [3,2,4], target = 6 -> Expected [1,2], but got null ... FAILED',
-            '[error] 2/2 assertion test cases failed. Please complete the return statement logic.'
-          ];
-        }
+        const hasMap = norm.includes('newmap') || norm.includes('map()') || norm.includes('={}') || norm.includes('map.set') || norm.includes('map.get') || norm.includes('complement');
+        const hasReturn = norm.includes('return[') || norm.includes('return[i') || norm.includes('push(') || (norm.includes('[') && norm.includes(']') && norm.includes('return'));
+        passed = hasMap && hasReturn;
+        logs = passed
+          ? ['✓ Test 1: twoSum([2,7,11,15], 9) → [0,1]  PASSED', '✓ Test 2: twoSum([3,2,4], 6) → [1,2]  PASSED', '✓ Test 3: twoSum([3,3], 6) → [0,1]  PASSED', '> All tests passed! O(n) time, O(n) space ✓']
+          : ['✗ Test 1: Expected [0,1], got undefined  FAILED', '✗ Test 2: Expected [1,2], got undefined  FAILED', '> Hint: Create a Map, store each index, check if (target - num) exists.'];
       } else {
-        // Validate useDebounce custom React hook logic
-        const hasUseEffect = normalizedCode.includes('useEffect');
-        const hasTimeout = normalizedCode.includes('setTimeout');
-        const hasClearTimeout = normalizedCode.includes('clearTimeout');
-        const hasReturn = normalizedCode.includes('return');
-
-        if (hasUseEffect && hasTimeout && hasClearTimeout && hasReturn) {
-          logs = [
-            'Test Case 1: useDebounce("test", 500) -> Output state updated ... PASSED',
-            'Test Case 2: cleanup clearTimeout correctly cleared timeout on unmount ... PASSED',
-            '[success] Hook compiled and test specs passed successfully!'
-          ];
-          passed = true;
-        } else {
-          logs = [
-            'Test Case 1: hook failed to update state value dynamically ... FAILED',
-            'Test Case 2: missing clearTimeout cleanup in useEffect return callback ... FAILED',
-            '[error] Hook validation failed. Ensure you implement useEffect, setTimeout, and return clearTimeout cleanup.'
-          ];
-        }
+        const hasUseEffect = norm.includes('useeffect');
+        const hasTimeout = norm.includes('settimeout');
+        const hasClear = norm.includes('cleartimeout');
+        const hasSetValue = norm.includes('setvalue') || norm.includes('setdebouncedvalue') || norm.includes('setstate');
+        passed = hasUseEffect && hasTimeout && hasClear && hasSetValue;
+        const missing = [!hasUseEffect && 'useEffect', !hasTimeout && 'setTimeout', !hasClear && 'clearTimeout', !hasSetValue && 'setState call'].filter(Boolean);
+        logs = passed
+          ? ['✓ Test 1: Delay updates state after period  PASSED', '✓ Test 2: Cleanup cancels pending timer  PASSED', '✓ Test 3: New value resets timer  PASSED', '> Hook validated! ✓']
+          : ['✗ Test 1: State not updated after delay  FAILED', '✗ Test 2: Cleanup missing  FAILED', `> Missing: ${missing.join(', ')}`];
       }
 
       setConsoleLogs(logs);
       setTestCasesStatus(passed ? 'passed' : 'failed');
-    }, 1500);
-  };
+    }, 1800);
+  }, []);
 
-  const submitAnswer = (userText) => {
+  // ── submit answer ──
+  const submitAnswer = useCallback((userText) => {
     if (isAiResponding) return;
 
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const currentQ = activeInterview?.questions[currentQuestionIndex];
     const userMsg = {
       sender: 'user',
       text: userText,
-      code: activeInterview.questions[currentQuestionIndex].type === 'technical_code' ? codeAnswer : null,
-      timestamp,
+      code: currentQ?.type === 'technical_code' ? codeAnswer : null,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-
-    setChatHistory((prev) => [...prev, userMsg]);
+    setChatHistory(prev => [...prev, userMsg]);
     setIsAiResponding(true);
 
     setTimeout(() => {
-      const nextIndex = currentQuestionIndex + 1;
-      let nextMsgText = '';
+      const nextIdx = currentQuestionIndex + 1;
+      const totalQ = activeInterview?.questions?.length || 0;
+      let responseText;
 
-      if (nextIndex < activeInterview.questions.length) {
-        const nextQuestion = activeInterview.questions[nextIndex];
-        setCurrentQuestionIndex(nextIndex);
-        setCodeAnswer(nextQuestion.type === 'technical_code' ? nextQuestion.templateCode : '');
+      if (nextIdx < totalQ) {
+        const nextQ = activeInterview.questions[nextIdx];
+        setCurrentQuestionIndex(nextIdx);
+        setCodeAnswer(nextQ?.type === 'technical_code' ? (nextQ.templateCode || '') : '');
         setTestCasesStatus('idle');
         setConsoleLogs([]);
-        nextMsgText = `Thank you for sharing. That's a helpful perspective. Let's move on to the next question. Here it is: ${nextQuestion.question}`;
+        const ack = userText.length > 60 ? "Good response — I appreciate the depth." : "Thanks for that answer.";
+        responseText = `${ack}\n\nMoving on:\n\n${nextQ.question}`;
       } else {
-        nextMsgText = `Thank you! That concludes our questions. I will now process your responses and compile your feedback report. Please click 'View Report' below.`;
+        responseText = "That concludes our interview session. You've done well covering all three areas. Click \"View Full Report\" below to see your detailed diagnostic scores and personalized coach feedback.";
       }
 
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          sender: 'interviewer',
-          text: nextMsgText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
+      setChatHistory(prev => [...prev, {
+        sender: 'interviewer',
+        text: responseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
       setIsAiResponding(false);
-    }, 1500);
-  };
+    }, 1600);
+  }, [isAiResponding, activeInterview, currentQuestionIndex, codeAnswer]);
 
-  const finishActiveInterview = () => {
-    // Extract actual user responses from the transcript
-    const userAnswers = chatHistory.filter(c => c.sender === 'user');
+  // ── finish & score ──
+  const finishActiveInterview = useCallback(() => {
+    const userAnswers = chatHistory.filter(m => m.sender === 'user');
+    const scores = calculateInterviewScore(userAnswers, testCasesStatus, activeInterview?.questions || []);
+    const mins = Math.floor(interviewTimer / 60);
+    const secs = interviewTimer % 60;
 
-    let commsScore = 10;
-    let techScore = 10;
-    let problemScore = 10;
-    let behaviorScore = 10;
-    let feedback;
-
-    if (userAnswers.length === 0) {
-      feedback = "No responses were provided during this session. The AI Agent could not run assessments. Score remains at zero.";
-    } else {
-      // 1. Articulation and Length check
-      let totalLength = 0;
-      userAnswers.forEach(ans => {
-        totalLength += (ans.text || '').trim().length;
-      });
-      const avgLength = totalLength / userAnswers.length;
-
-      if (avgLength > 120) {
-        commsScore += 45;
-        behaviorScore += 40;
-      } else if (avgLength > 30) {
-        commsScore += 25;
-        behaviorScore += 20;
-      }
-
-      // 2. Keyword density checks matching target parameters
-      const userTextBlob = userAnswers.map(a => a.text.toLowerCase()).join(' ');
-      const keywords = ['hook', 'state', 'cache', 'complexity', 'star', 'optimize', 'index', 'component', 'latency', 'scale'];
-      keywords.forEach(kw => {
-        if (userTextBlob.includes(kw)) {
-          techScore += 5;
-          commsScore += 3;
-        }
-      });
-
-      // 3. Coding compiler test evaluation (100% accurate check)
-      if (testCasesStatus === 'passed') {
-        techScore += 40;
-        problemScore += 45;
-      } else if (testCasesStatus === 'failed') {
-        techScore += 5;
-        problemScore += 5;
-      }
-
-      // Clamping limits
-      commsScore = Math.min(Math.max(commsScore, 10), 98);
-      techScore = Math.min(Math.max(techScore, 10), 98);
-      problemScore = Math.min(Math.max(problemScore, 10), 98);
-      behaviorScore = Math.min(Math.max(behaviorScore, 10), 98);
-
-      const overall = Math.floor((commsScore + techScore + problemScore + behaviorScore) / 4);
-
-      if (overall < 40) {
-        feedback = `The candidate provided extremely brief or empty answers, and the coding exercises failed compilation. Excellent preparation is required to structure technical answers and solve compiler constraints.`;
-      } else if (overall >= 40 && overall < 75) {
-        feedback = `Moderate performance during the interview. The candidate showed solid conceptual ideas, but the coding compiler did not verify correct pointer logic or answer length lacked depth. Focus on optimal space/time complex structures.`;
-      } else {
-        feedback = `Excellent performance! The candidate compiled correct test cases, and responses articulated technical solutions clearly. Solid STAR behavioral execution was observed.`;
-      }
-    }
-
-    const finalReport = {
-      id: activeInterview.id,
-      role: activeInterview.role,
-      company: activeInterview.company,
-      difficulty: activeInterview.difficulty,
+    const report = {
+      id: activeInterview?.id,
+      role: activeInterview?.role,
+      company: activeInterview?.company,
+      difficulty: activeInterview?.difficulty,
       date: new Date().toISOString().split('T')[0],
-      duration: '35 mins',
+      duration: `${mins}m ${secs}s`,
       scores: {
-        overall: Math.floor((commsScore + techScore + problemScore + behaviorScore) / 4),
-        communication: commsScore,
-        technical: techScore,
-        problemSolving: problemScore,
-        behavioral: behaviorScore
+        overall: scores.overall,
+        communication: scores.communication,
+        technical: scores.technical,
+        problemSolving: scores.problemSolving,
+        behavioral: scores.behavioral,
       },
-      feedback,
-      qaReviews: activeInterview.questions.map((q, idx) => {
-        const userAnswer = userAnswers[idx];
-        return {
-          question: q.question,
-          userAnswer: userAnswer ? userAnswer.text : 'No answer provided.',
-          userCode: userAnswer ? userAnswer.code : null,
-          idealAnswer: q.type === 'technical_code' 
-            ? `Ideal solution must compile successfully: O(N) using HashMap mappings for twoSum, or return clearTimeout cleanup callback in useEffect for useDebounce.`
-            : `Ideal answers should follow the STAR structure, outlining exact metrics (e.g. reduced CPU load by 15%) and listing technologies used.`,
-          coachScore: q.type === 'technical_code' 
-            ? (testCasesStatus === 'passed' ? 95 : 20) 
-            : (userAnswer && userAnswer.text.length > 50 ? 88 : 20),
-          coachFeedback: q.type === 'technical_code' 
-            ? (testCasesStatus === 'passed' ? 'Perfect. The compiler validated correct pointer operations.' : 'Failing: The logic returned null instead of reversing the linked nodes.')
-            : (userAnswer && userAnswer.text.length > 50 ? 'Demonstrates solid alignment. Expand slightly on exact latency tradeoffs.' : 'Response was too short to yield actionable feedback.')
-        };
-      })
+      feedback: scores.feedback,
+      qaReviews: scores.qaReviews || [],
     };
 
-    setInterviews((prev) => [finalReport, ...prev]);
-    setActiveInterview(finalReport);
+    setInterviews(prev => [report, ...prev]);
+    setActiveInterview(report);
     setInterviewStatus('review');
-  };
+  }, [chatHistory, testCasesStatus, activeInterview, interviewTimer]);
 
-  const resetInterview = () => {
+  const resetInterview = useCallback(() => {
     setActiveInterview(null);
     setCurrentQuestionIndex(0);
     setChatHistory([]);
@@ -343,100 +329,37 @@ function twoSum(nums, target) {
     setTestCasesStatus('idle');
     setConsoleLogs([]);
     setInterviewStatus('idle');
-  };
+    setInterviewTimer(0);
+  }, []);
 
-  const addCompletedQuiz = (quiz) => {
-    setQuizzes((prev) => [quiz, ...prev]);
-  };
+  const addCompletedQuiz = useCallback((quiz) => {
+    setQuizzes(prev => [quiz, ...prev]);
+  }, []);
 
-  const clearAllData = () => {
+  const clearAllData = useCallback(() => {
     setInterviews([]);
     setQuizzes([]);
     localStorage.removeItem('interviews');
     localStorage.removeItem('quizzes');
-  };
+  }, []);
 
-  const loadDemoData = () => {
-    // Generate beautiful demo interviews
-    const demoInterviews = [
-      {
-        id: 'session-demo-1',
-        role: 'Frontend Engineer',
-        company: 'Google',
-        difficulty: 'Hard',
-        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: '45 mins',
-        scores: { overall: 88, communication: 90, technical: 85, problemSolving: 92, behavioral: 85 },
-        feedback: "Strong performance in algorithmic problem solving and concurrent hook lifecycles. Structure your explanation around separation of concerns and concrete metrics.",
-        qaReviews: [
-          {
-            question: "Looking closely at the job description for the Frontend Engineer position at Google, it outlines requirements for React 19 Server Actions. How would you design a scalable system utilizing these technologies, and what major latency trade-offs would you expect?",
-            userAnswer: "I would utilize React 19 transitions and server actions to defer non-critical rendering blocks, and stream the dynamic content to the client in chunks to ensure sub-100ms first paint metrics.",
-            idealAnswer: "Ideal answers should follow the STAR structure, outlining exact metrics (e.g. reduced CPU load by 15%) and listing technologies used.",
-            coachScore: 88,
-            coachFeedback: "Demonstrates solid alignment. Expand slightly on exact latency tradeoffs."
-          }
-        ]
-      },
-      {
-        id: 'session-demo-2',
-        role: 'Frontend Developer',
-        company: 'Stripe',
-        difficulty: 'Medium',
-        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: '35 mins',
-        scores: { overall: 82, communication: 80, technical: 85, problemSolving: 80, behavioral: 83 },
-        feedback: "Solid technical layout. Coding was clear and efficient. Behavioral alignment is well within requirements.",
-        qaReviews: []
-      }
-    ];
-    setInterviews(demoInterviews);
-
-    // Generate demo quizzes
-    const demoQuizzes = [
-      {
-        id: 'quiz-demo-1',
-        category: 'React 19',
-        score: 100,
-        xpGained: 250,
-        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        correctAnswers: 5,
-        totalQuestions: 5
-      },
-      {
-        id: 'quiz-demo-2',
-        category: 'Web Performance',
-        score: 80,
-        xpGained: 150,
-        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        correctAnswers: 4,
-        totalQuestions: 5
-      }
-    ];
-    setQuizzes(demoQuizzes);
+  const formatTimer = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
   return (
     <InterviewContext.Provider value={{
-      interviews,
-      quizzes,
-      activeInterview,
-      currentQuestionIndex,
-      chatHistory,
-      codeAnswer,
-      setCodeAnswer,
-      isAiResponding,
-      interviewStatus,
-      testCasesStatus,
-      consoleLogs,
-      startNewInterview,
-      submitAnswer,
-      runCode,
-      finishActiveInterview,
-      resetInterview,
-      addCompletedQuiz,
-      clearAllData,
-      loadDemoData,
+      interviews, quizzes,
+      activeInterview, currentQuestionIndex,
+      chatHistory, codeAnswer, setCodeAnswer,
+      isAiResponding, interviewStatus,
+      testCasesStatus, consoleLogs,
+      interviewTimer, formatTimer,
+      startNewInterview, submitAnswer, runCode,
+      finishActiveInterview, resetInterview,
+      addCompletedQuiz, clearAllData,
     }}>
       {children}
     </InterviewContext.Provider>
@@ -444,9 +367,7 @@ function twoSum(nums, target) {
 }
 
 export function useInterview() {
-  const context = useContext(InterviewContext);
-  if (!context) {
-    throw new Error('useInterview must be used within an InterviewProvider');
-  }
-  return context;
+  const ctx = useContext(InterviewContext);
+  if (!ctx) throw new Error('useInterview must be used within InterviewProvider');
+  return ctx;
 }

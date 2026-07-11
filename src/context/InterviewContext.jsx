@@ -153,11 +153,32 @@ function calculateInterviewScore(userAnswers, testStatus, questions) {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function InterviewProvider({ children }) {
+  // Load activity data — only for the currently logged-in user
   const [interviews, setInterviews] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('interviews') || '[]'); } catch { return []; }
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('interviewai_user') || 'null');
+      if (!currentUser?.id) return [];
+      const stored = JSON.parse(localStorage.getItem('interviews') || '[]');
+      // Validate data belongs to current user; if no userId tag, assume stale and discard
+      if (stored.length > 0 && stored[0]?.userId && stored[0].userId !== currentUser.id) {
+        localStorage.removeItem('interviews');
+        return [];
+      }
+      return stored;
+    } catch { return []; }
   });
+
   const [quizzes, setQuizzes] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('quizzes') || '[]'); } catch { return []; }
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('interviewai_user') || 'null');
+      if (!currentUser?.id) return [];
+      const stored = JSON.parse(localStorage.getItem('quizzes') || '[]');
+      if (stored.length > 0 && stored[0]?.userId && stored[0].userId !== currentUser.id) {
+        localStorage.removeItem('quizzes');
+        return [];
+      }
+      return stored;
+    } catch { return []; }
   });
 
   const [activeInterview, setActiveInterview] = useState(null);
@@ -298,8 +319,12 @@ export function InterviewProvider({ children }) {
     const mins = Math.floor(interviewTimer / 60);
     const secs = interviewTimer % 60;
 
+    // Tag with userId so stale data can be detected on next load
+    const currentUser = JSON.parse(localStorage.getItem('interviewai_user') || 'null');
+
     const report = {
       id: activeInterview?.id,
+      userId: currentUser?.id || null,
       role: activeInterview?.role,
       company: activeInterview?.company,
       difficulty: activeInterview?.difficulty,
@@ -333,7 +358,8 @@ export function InterviewProvider({ children }) {
   }, []);
 
   const addCompletedQuiz = useCallback((quiz) => {
-    setQuizzes(prev => [quiz, ...prev]);
+    const currentUser = JSON.parse(localStorage.getItem('interviewai_user') || 'null');
+    setQuizzes(prev => [{ ...quiz, userId: currentUser?.id || null }, ...prev]);
   }, []);
 
   const clearAllData = useCallback(() => {

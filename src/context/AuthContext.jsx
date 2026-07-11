@@ -50,6 +50,9 @@ export function AuthProvider({ children }) {
           experienceLevel: 'Junior',
           targetCompanies: [],
         };
+        // Clear any stale activity data from previous sessions
+        localStorage.removeItem('interviews');
+        localStorage.removeItem('quizzes');
         setUser(newUser);
         saveUser(newUser);
         resolve(newUser);
@@ -96,6 +99,9 @@ export function AuthProvider({ children }) {
           experienceLevel: 'Junior',
           targetCompanies: [],
         };
+        // Clear any stale activity data from previous sessions
+        localStorage.removeItem('interviews');
+        localStorage.removeItem('quizzes');
         setUser(newUser);
         saveUser(newUser);
         resolve(newUser);
@@ -126,6 +132,8 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('interviews');
+    localStorage.removeItem('quizzes');
   }, []);
 
   const updateProfile = useCallback((data) => {

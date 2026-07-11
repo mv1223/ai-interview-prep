@@ -27,6 +27,7 @@ export function AuthProvider({ children }) {
       company: 'Stripe',
       isPremium: true,
       avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      onboardingCompleted: true, // Bypass onboarding for demo fast path
     };
     setUser(mockUser);
     localStorage.setItem('user', JSON.stringify(mockUser));
@@ -50,6 +51,7 @@ export function AuthProvider({ children }) {
       company: 'Placement Prep',
       isPremium: true,
       avatarUrl: avatarUrl || defaultAvatar,
+      onboardingCompleted: false, // Force onboarding for new registrations
     };
     setUser(mockUser);
     localStorage.setItem('user', JSON.stringify(mockUser));
@@ -69,6 +71,15 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const completeOnboarding = (onboardingData) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const newUser = { ...prev, ...onboardingData, onboardingCompleted: true };
+      localStorage.setItem('user', JSON.stringify(newUser));
+      return newUser;
+    });
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -76,6 +87,7 @@ export function AuthProvider({ children }) {
       signup,
       logout,
       updateProfile,
+      completeOnboarding,
       authModalOpen,
       setAuthModalOpen,
       authModalTab,

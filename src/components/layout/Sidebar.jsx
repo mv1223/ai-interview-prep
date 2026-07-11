@@ -12,7 +12,8 @@ import {
   IoChevronBackOutline,
   IoChevronForwardOutline,
   IoSunnyOutline,
-  IoMoonOutline
+  IoMoonOutline,
+  IoHelpCircleOutline
 } from 'react-icons/io5';
 
 export default function Sidebar() {
@@ -29,6 +30,7 @@ export default function Sidebar() {
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: IoGridOutline },
     { to: '/interview', label: 'Mock Interview', icon: IoMicOutline },
+    { to: '/quiz', label: 'Quiz Prep', icon: IoHelpCircleOutline },
     { to: '/resume', label: 'Resume Analyzer', icon: IoDocumentTextOutline },
     { to: '/roadmap', label: 'Skill Roadmap', icon: IoGitBranchOutline },
     { to: '/settings', label: 'Settings', icon: IoSettingsOutline },
@@ -36,7 +38,7 @@ export default function Sidebar() {
 
   return (
     <aside 
-      className={`relative hidden md:flex flex-col h-[calc(100vh-64px)] border-r border-slate-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'}`}
+      className={`relative hidden md:flex flex-col h-[calc(100vh-64px)] border-r border-border-primary bg-bg-secondary transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'}`}
     >
       {/* Navigation links */}
       <nav className="flex-1 px-3 py-6 space-y-1.5">
@@ -49,8 +51,8 @@ export default function Sidebar() {
               className={({ isActive }) => 
                 `flex items-center gap-3.5 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
                   isActive 
-                    ? 'bg-slate-100 text-brand-blue dark:bg-neutral-800 dark:text-brand-blue font-semibold' 
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-neutral-400 dark:hover:bg-neutral-800/40 dark:hover:text-neutral-200'
+                    ? 'bg-surface-hover text-brand-blue font-semibold' 
+                    : 'text-text-secondary hover:bg-surface-hover/60 hover:text-text-primary'
                 }`
               }
             >
@@ -63,7 +65,7 @@ export default function Sidebar() {
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="flex w-full items-center gap-3.5 px-3 py-3 rounded-lg text-sm font-medium transition-all text-slate-500 hover:bg-slate-55 hover:text-slate-905 dark:text-neutral-400 dark:hover:bg-neutral-800/40 dark:hover:text-neutral-200 cursor-pointer text-left"
+          className="flex w-full items-center gap-3.5 px-3 py-3 rounded-lg text-sm font-medium transition-all text-text-secondary hover:bg-surface-hover hover:text-text-primary cursor-pointer text-left"
         >
           {isDark ? <IoSunnyOutline size={20} className="shrink-0 text-amber-500" /> : <IoMoonOutline size={20} className="shrink-0" />}
           {!collapsed && <span>{isDark ? 'Light Mode' : 'Night Mode'}</span>}
@@ -73,26 +75,26 @@ export default function Sidebar() {
       {/* Collapse button toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute top-4 -right-3.5 hidden sm:flex items-center justify-center h-7 w-7 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:text-white"
+        className="absolute top-4 -right-3.5 hidden sm:flex items-center justify-center h-7 w-7 rounded-full border border-border-primary bg-bg-secondary text-text-secondary hover:text-text-primary shadow-sm cursor-pointer"
       >
         {collapsed ? <IoChevronForwardOutline size={14} /> : <IoChevronBackOutline size={14} />}
       </button>
 
       {/* User profile section */}
       {user && (
-        <div className="p-3 border-t border-slate-100 dark:border-neutral-800/80 bg-slate-50/50 dark:bg-neutral-900/50">
+        <div className="p-3 border-t border-border-primary/80 bg-bg-primary/50">
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} rounded-lg p-2`}>
             <img 
               src={user.avatarUrl} 
               alt={user.name} 
-              className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-neutral-700 shadow-sm shrink-0" 
+              className="h-9 w-9 rounded-full object-cover border border-border-primary shadow-sm shrink-0" 
             />
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-slate-800 dark:text-neutral-200 truncate leading-none">
+                <h4 className="text-sm font-semibold text-text-primary truncate leading-none">
                   {user.name}
                 </h4>
-                <p className="text-xxs text-slate-400 dark:text-neutral-500 truncate mt-0.5">
+                <p className="text-[10px] text-text-secondary truncate mt-0.5">
                   {user.role}
                 </p>
               </div>
@@ -100,7 +102,7 @@ export default function Sidebar() {
             {!collapsed && (
               <button 
                 onClick={handleLogout}
-                className="rounded p-1 text-slate-400 hover:bg-slate-150 hover:text-red-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-red-400 shrink-0 transition-colors"
+                className="rounded p-1 text-text-secondary hover:bg-surface-hover hover:text-red-500 shrink-0 transition-colors cursor-pointer"
                 title="Log Out"
               >
                 <IoLogOutOutline size={18} />
@@ -110,7 +112,7 @@ export default function Sidebar() {
           {collapsed && (
             <button
               onClick={handleLogout}
-              className="mt-2 flex w-full justify-center rounded py-2 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:text-neutral-500 dark:hover:bg-neutral-800/80"
+              className="mt-2 flex w-full justify-center rounded py-2 text-text-secondary hover:bg-surface-hover hover:text-red-500 cursor-pointer"
               title="Log Out"
             >
               <IoLogOutOutline size={18} />

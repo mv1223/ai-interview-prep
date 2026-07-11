@@ -64,9 +64,15 @@ export function ResumeProvider({ children }) {
   };
 
   const resetResume = () => {
-    setAtsScore(68);
+    setAtsScore(0);
+    setFileName(null);
+    setOptimizations([]);
+  };
+
+  const loadDemoResume = () => {
+    setAtsScore(74);
     setFileName('Sarah_Connor_Resume_Draft.pdf');
-    setOptimizations(MOCK_OPTIMIZATIONS);
+    setOptimizations(MOCK_OPTIMIZATIONS.map(opt => ({ ...opt, applied: false })));
   };
 
   return (
@@ -78,6 +84,7 @@ export function ResumeProvider({ children }) {
       uploadResume,
       applyOptimization,
       resetResume,
+      loadDemoResume,
     }}>
       {children}
     </ResumeContext.Provider>

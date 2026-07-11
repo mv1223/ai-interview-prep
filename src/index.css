@@ -1,45 +1,86 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-primary: #e2e8f0;
+  --border-secondary: #f1f5f9;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --accent: #3b82f6;
+
+  --shadow-premium: 0 8px 30px rgba(0, 0, 0, 0.05);
+  --shadow-premium-dark: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.dark {
+  --bg-primary: #09090b;
+  --bg-secondary: #131316;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --border-primary: #27272a;
+  --border-secondary: #3f3f46;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --accent: #3b82f6;
+
+  --shadow-premium: 0 8px 30px rgba(0, 0, 0, 0.25);
+  --shadow-premium-dark: 0 8px 30px rgba(0, 0, 0, 0.55);
+}
+
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Premium theme gradients and shadows */
-  --shadow-premium: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --shadow-premium-dark: 0 8px 30px rgba(0, 0, 0, 0.5);
-  --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.15);
-  --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.15);
+  /* Global design colors mapped to CSS variables */
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-background-primary: var(--bg-primary);
+  --color-background-secondary: var(--bg-secondary);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-accent: var(--accent);
 
   /* Brand Colors */
   --color-brand-blue: #3b82f6;
   --color-brand-purple: #8b5cf6;
   --color-brand-pink: #ec4899;
-  
-  --color-dark-bg: #09090b;
-  --color-dark-card: #131316;
-  --color-dark-border: #232329;
-  
-  --color-light-bg: #f8fafc;
-  --color-light-card: #ffffff;
-  --color-light-border: #e2e8f0;
+
+  --shadow-premium: var(--shadow-premium);
+  --shadow-premium-dark: var(--shadow-premium-dark);
+  --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.12);
+  --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.12);
 }
 
 /* Custom Base Styles */
 @layer base {
   html, body {
-    @apply font-sans m-0 p-0 antialiased overflow-x-hidden;
+    @apply font-sans m-0 p-0 antialiased overflow-x-hidden transition-colors duration-200;
     font-size: 16px;
     letter-spacing: -0.011em;
   }
 
   body {
-    @apply bg-light-bg text-slate-800 transition-colors duration-300;
-  }
-
-  body.dark {
-    @apply bg-dark-bg text-slate-200;
+    @apply bg-bg-primary text-text-primary;
   }
 
   /* Custom scrollbars */
@@ -67,10 +108,7 @@
 /* Custom Utilities for Premium Glassmorphism & Effects */
 @layer utilities {
   .glass-card {
-    @apply bg-white/75 backdrop-blur-md border border-slate-200/50 shadow-premium;
-  }
-  .dark .glass-card {
-    @apply bg-neutral-900/70 backdrop-blur-md border border-neutral-800/60 shadow-premium-dark;
+    @apply bg-bg-secondary border border-border-primary shadow-premium;
   }
 
   .text-gradient {
@@ -95,8 +133,5 @@
 
 /* Recharts override custom style */
 .recharts-default-tooltip {
-  @apply !bg-white/95 !border-slate-200 !rounded-lg !shadow-premium !p-2 !backdrop-blur-sm;
-}
-.dark .recharts-default-tooltip {
-  @apply !bg-neutral-900/95 !border-neutral-800 !shadow-premium-dark;
+  @apply !bg-bg-secondary !border-border-primary !rounded-lg !shadow-premium !p-2.5 !backdrop-blur-sm !text-text-primary;
 }

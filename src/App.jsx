@@ -17,12 +17,14 @@ const InterviewPage = lazy(() => import('./pages/InterviewPage'));
 const ResumePage = lazy(() => import('./pages/ResumePage'));
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
+const QuizPage = lazy(() => import('./pages/QuizPage'));
 
 // High-fidelity fallback loading screen
 const PageLoader = () => (
-  <div className="min-h-screen bg-light-bg dark:bg-dark-bg flex items-center justify-center">
+  <div className="min-h-screen bg-bg-primary text-text-primary flex items-center justify-center">
     <div className="relative flex items-center justify-center">
-      <span className="absolute h-12 w-12 rounded-full border-2 border-slate-200 border-t-brand-blue animate-spin dark:border-neutral-800 dark:border-t-brand-blue" />
+      <span className="absolute h-12 w-12 rounded-full border-2 border-border-primary border-t-brand-blue animate-spin" />
     </div>
   </div>
 );
@@ -40,6 +42,7 @@ export default function App() {
                 <Routes>
                   {/* Public Route */}
                   <Route path="/" element={<LandingPage />} />
+                  <Route path="/onboarding" element={<OnboardingPage />} />
 
                   {/* Secure App Shell Routes */}
                   <Route element={<DashboardLayout />}>
@@ -48,6 +51,7 @@ export default function App() {
                     <Route path="/resume" element={<ResumePage />} />
                     <Route path="/roadmap" element={<RoadmapPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/quiz" element={<QuizPage />} />
                   </Route>
                 </Routes>
               </Suspense>

@@ -9,6 +9,11 @@ export function InterviewProvider({ children }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [quizzes, setQuizzes] = useState(() => {
+    const saved = localStorage.getItem('quizzes');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [activeInterview, setActiveInterview] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [chatHistory, setChatHistory] = useState([]);
@@ -23,6 +28,10 @@ export function InterviewProvider({ children }) {
   useEffect(() => {
     localStorage.setItem('interviews', JSON.stringify(interviews));
   }, [interviews]);
+
+  useEffect(() => {
+    localStorage.setItem('quizzes', JSON.stringify(quizzes));
+  }, [quizzes]);
 
   // Helper generator compiling JD parameters
   const generateQuestions = (role, company, jd) => {
@@ -336,9 +345,81 @@ function twoSum(nums, target) {
     setInterviewStatus('idle');
   };
 
+  const addCompletedQuiz = (quiz) => {
+    setQuizzes((prev) => [quiz, ...prev]);
+  };
+
+  const clearAllData = () => {
+    setInterviews([]);
+    setQuizzes([]);
+    localStorage.removeItem('interviews');
+    localStorage.removeItem('quizzes');
+  };
+
+  const loadDemoData = () => {
+    // Generate beautiful demo interviews
+    const demoInterviews = [
+      {
+        id: 'session-demo-1',
+        role: 'Frontend Engineer',
+        company: 'Google',
+        difficulty: 'Hard',
+        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: '45 mins',
+        scores: { overall: 88, communication: 90, technical: 85, problemSolving: 92, behavioral: 85 },
+        feedback: "Strong performance in algorithmic problem solving and concurrent hook lifecycles. Structure your explanation around separation of concerns and concrete metrics.",
+        qaReviews: [
+          {
+            question: "Looking closely at the job description for the Frontend Engineer position at Google, it outlines requirements for React 19 Server Actions. How would you design a scalable system utilizing these technologies, and what major latency trade-offs would you expect?",
+            userAnswer: "I would utilize React 19 transitions and server actions to defer non-critical rendering blocks, and stream the dynamic content to the client in chunks to ensure sub-100ms first paint metrics.",
+            idealAnswer: "Ideal answers should follow the STAR structure, outlining exact metrics (e.g. reduced CPU load by 15%) and listing technologies used.",
+            coachScore: 88,
+            coachFeedback: "Demonstrates solid alignment. Expand slightly on exact latency tradeoffs."
+          }
+        ]
+      },
+      {
+        id: 'session-demo-2',
+        role: 'Frontend Developer',
+        company: 'Stripe',
+        difficulty: 'Medium',
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: '35 mins',
+        scores: { overall: 82, communication: 80, technical: 85, problemSolving: 80, behavioral: 83 },
+        feedback: "Solid technical layout. Coding was clear and efficient. Behavioral alignment is well within requirements.",
+        qaReviews: []
+      }
+    ];
+    setInterviews(demoInterviews);
+
+    // Generate demo quizzes
+    const demoQuizzes = [
+      {
+        id: 'quiz-demo-1',
+        category: 'React 19',
+        score: 100,
+        xpGained: 250,
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        correctAnswers: 5,
+        totalQuestions: 5
+      },
+      {
+        id: 'quiz-demo-2',
+        category: 'Web Performance',
+        score: 80,
+        xpGained: 150,
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        correctAnswers: 4,
+        totalQuestions: 5
+      }
+    ];
+    setQuizzes(demoQuizzes);
+  };
+
   return (
     <InterviewContext.Provider value={{
       interviews,
+      quizzes,
       activeInterview,
       currentQuestionIndex,
       chatHistory,
@@ -353,6 +434,9 @@ function twoSum(nums, target) {
       runCode,
       finishActiveInterview,
       resetInterview,
+      addCompletedQuiz,
+      clearAllData,
+      loadDemoData,
     }}>
       {children}
     </InterviewContext.Provider>

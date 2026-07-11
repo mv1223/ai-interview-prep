@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useInterview } from '../context/InterviewContext';
 import { useResume } from '../context/ResumeContext';
+import { useTheme } from '../context/ThemeContext';
+import EmptyState from '../components/ui/EmptyState';
 import { 
   ResponsiveContainer, 
   RadarChart, 
@@ -20,75 +22,108 @@ import {
 import { 
   IoMicOutline, 
   IoArrowForwardOutline,
-  IoCalendarOutline,
   IoSearchOutline,
   IoNotificationsOutline,
   IoSparklesOutline,
   IoDocumentTextOutline,
   IoGitBranchOutline,
   IoCheckmarkCircleSharp,
-  IoCloseOutline,
   IoPlayOutline,
-  IoBarChartOutline
+  IoBarChartOutline,
+  IoRibbonOutline,
+  IoLockClosedOutline,
+  IoFlameOutline,
+  IoHelpCircleOutline,
+  IoRefreshOutline,
+  IoTrendingUpOutline
 } from 'react-icons/io5';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { interviews, startNewInterview } = useInterview();
-  const { atsScore } = useResume();
+  const { interviews, quizzes, loadDemoData, clearAllData } = useInterview();
+  const { atsScore, fileName, loadDemoResume, resetResume } = useResume();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
 
-  // Simulated Skeleton Loading
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
+    const timer = setTimeout(() => setIsLoading(false), 800);
     return () => clearTimeout(timer);
   }, []);
 
-  // Notifications dropdown state
+  // Notifications state
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "AI Recruiter compiled Google Mock feedback.", time: "10 mins ago", read: false },
-    { id: 2, text: "ATS Resume optimization fit updated to 74%.", time: "2 hours ago", read: false },
-    { id: 3, text: "New roadmap topic unlocked: Concurrency.", time: "1 day ago", read: true }
-  ]);
+  const [clearedNotifs, setClearedNotifs] = useState([]);
+
+  // Compute notifications dynamically during render to avoid setState in effects
+  const notifications = [];
+  if (fileName && !clearedNotifs.includes(1)) {
+    notifications.push({ id: 1, text: `Resume calibrated successfully! ATS Score: ${atsScore}%`, time: 'Just now' });
+  }
+  if (interviews.length > 0 && !clearedNotifs.includes(2)) {
+    notifications.push({ id: 2, text: `Mock simulation compiled: ${interviews[0].company} - ${interviews[0].role}`, time: '1 hr ago' });
+  }
+  if (quizzes.length > 0 && !clearedNotifs.includes(3)) {
+    notifications.push({ id: 3, text: `Completed Quiz: Score: ${quizzes[0].score}%`, time: '2 hrs ago' });
+  }
 
   // Quick Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-  const mockQuickLinks = [
-    { title: "React 19 Concurrency Checklist", path: "/roadmap" },
-    { title: "Stripe API Prep Mock Interview", path: "/interview" },
-    { title: "ATS Optimization Suggestion: Vercel CV", path: "/resume" }
+  // Today's practice goals checklist synchronized to real state
+  const goals = [
+    { id: 1, text: 'Record first mock interview', completed: interviews.length > 0, path: '/interview' },
+    { id: 2, text: 'Upload CV to ATS sandbox', completed: !!fileName, path: '/resume' },
+    { id: 3, text: 'Complete React 19 concurrent quiz', completed: quizzes.length > 0, path: '/quiz' }
   ];
 
-  const handleMarkAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  // Demo Seeder actions
+  const handleLoadDemo = () => {
+    loadDemoData();
+    loadDemoResume();
+    setClearedNotifs([]);
   };
 
-  const handleClearNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const handleResetData = () => {
+    clearAllData();
+    resetResume();
+    setClearedNotifs([]);
   };
 
-  // Recharts Radar Skill Aggregation
-  const latestScores = interviews.length > 0 ? interviews[0].scores : {
-    overall: 0,
-    communication: 0,
-    technical: 0,
-    problemSolving: 0,
-    behavioral: 0
-  };
+  // Recharts calculations
+  const avgInterviewScore = interviews.length > 0 
+    ? Math.floor(interviews.reduce((acc, curr) => acc + curr.scores.overall, 0) / interviews.length) 
+    : 0;
+
+  const avgCodingScore = interviews.length > 0
+    ? Math.floor(interviews.reduce((acc, curr) => acc + curr.scores.technical, 0) / interviews.length)
+    : quizzes.length > 0 
+      ? Math.floor(quizzes.reduce((acc, curr) => acc + curr.score, 0) / quizzes.length)
+      : 0;
+
+  const avgQuizScore = quizzes.length > 0
+    ? Math.floor(quizzes.reduce((acc, curr) => acc + curr.score, 0) / quizzes.length)
+    : 0;
+
+  const overallPlacementProgress = Math.min(
+    Math.floor(
+      ((interviews.length > 0 ? 1 : 0) * 40) + 
+      ((quizzes.length > 0 ? 1 : 0) * 30) + 
+      ((fileName ? 1 : 0) * 30)
+    ), 100
+  );
+
+  const streakDays = interviews.length > 0 || quizzes.length > 0 ? 2 : 0;
 
   const radarData = [
-    { subject: 'Communication', score: latestScores.communication },
-    { subject: 'Technical accuracy', score: latestScores.technical },
-    { subject: 'Problem Solving', score: latestScores.problemSolving },
-    { subject: 'Behavioral Fit', score: latestScores.behavioral },
-    { subject: 'Overall Score', score: latestScores.overall },
+    { subject: 'Communication', score: interviews.length > 0 ? interviews[0].scores.communication : 0 },
+    { subject: 'Technical', score: interviews.length > 0 ? interviews[0].scores.technical : 0 },
+    { subject: 'Problem Solving', score: interviews.length > 0 ? interviews[0].scores.problemSolving : 0 },
+    { subject: 'Behavioral', score: interviews.length > 0 ? interviews[0].scores.behavioral : 0 },
+    { subject: 'Quiz Score', score: avgQuizScore },
   ];
 
-  // Recharts Line History Aggregation
   const lineData = [...interviews]
     .reverse()
     .map(item => ({
@@ -97,94 +132,118 @@ export default function Dashboard() {
       date: item.date
     }));
 
-  const handleQuickAction = (action) => {
-    if (action === 'google') {
-      startNewInterview({ role: 'Frontend Engineer', company: 'Google', difficulty: 'Hard' });
-      navigate('/interview');
-    } else if (action === 'resume') {
-      navigate('/resume');
-    } else if (action === 'roadmap') {
-      navigate('/roadmap');
-    }
-  };
+  // Achievements
+  const achievements = [
+    { id: 'ach-1', title: 'React Explorer', current: interviews.length, target: 10, desc: 'Complete 10 mock interviews.', icon: IoMicOutline },
+    { id: 'ach-2', title: 'Frontend Master', current: quizzes.length, target: 20, desc: 'Complete 20 challenge quizzes.', icon: IoHelpCircleOutline },
+    { id: 'ach-3', title: 'Consistency Champion', current: streakDays, target: 5, desc: 'Maintain a 5-day practice streak.', icon: IoFlameOutline }
+  ];
 
-  // SKELETON LOADER COMPONENT LAYOUT
+  // Leaderboard data
+  const leaderboardCandidates = [
+    { name: 'Sarah Connor', score: 98, role: 'Vercel Candidate' },
+    { name: 'Alex Rivers', score: 92, role: 'Stripe Candidate' },
+    { name: 'Devon May', score: 88, role: 'Google Candidate' },
+    { name: 'You', score: avgQuizScore || 0, role: `${user?.careerGoal || 'Frontend'} Prep` }
+  ].sort((a, b) => b.score - a.score);
+
+  // Quick Links
+  const mockQuickLinks = [
+    { title: "React 19 Concurrency Quiz", path: "/quiz" },
+    { title: "Standard Tech Mock Interview", path: "/interview" },
+    { title: "ATS Optimization Sandbox", path: "/resume" }
+  ];
+
   if (isLoading) {
     return (
       <div className="space-y-8 animate-pulse">
-        {/* Header Skeleton */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-2">
-            <div className="h-8 w-64 bg-slate-200 dark:bg-neutral-800 rounded-lg" />
-            <div className="h-4 w-96 bg-slate-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="h-8 w-64 bg-border-primary rounded-lg" />
+            <div className="h-4 w-96 bg-border-primary rounded-lg" />
           </div>
-          <div className="h-10 w-44 bg-slate-200 dark:bg-neutral-800 rounded-lg" />
+          <div className="h-10 w-44 bg-border-primary rounded-lg" />
         </div>
-
-        {/* Metric Cards Skeleton */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-28 rounded-2xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 p-5 space-y-3">
-              <div className="h-4 w-28 bg-slate-200 dark:bg-neutral-800 rounded" />
-              <div className="h-8 w-20 bg-slate-200 dark:bg-neutral-800 rounded" />
-            </div>
+            <div key={i} className="h-28 rounded-2xl bg-bg-secondary border border-border-primary p-5 space-y-3" />
           ))}
         </div>
-
-        {/* Charts Grid Skeleton */}
         <div className="grid md:grid-cols-2 gap-8">
           {[1, 2].map(i => (
-            <div key={i} className="h-72 rounded-2xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 p-5" />
+            <div key={i} className="h-72 rounded-2xl bg-bg-secondary border border-border-primary p-5" />
           ))}
         </div>
-
-        {/* History Grid Skeleton */}
-        <div className="h-64 rounded-2xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800/80 p-5" />
       </div>
     );
   }
 
+  // Adaptive chart strokes
+  const chartStroke = isDark ? '#27272a' : '#e2e8f0';
+  const textStroke = isDark ? '#a1a1aa' : '#64748b';
+
   return (
-    <div className="space-y-8">
-      {/* 1. TOP NAV / SEARCH / NOTIFICATIONS HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200/50 dark:border-neutral-800/50 pb-6 shrink-0">
-        
-        {/* User Greet */}
+    <div className="space-y-8 pb-12 text-text-primary transition-colors duration-300">
+      
+      {/* 0. RECRUITER DEV CONTROLLER BAR */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl border border-blue-500/20 bg-blue-50/5 dark:bg-blue-950/10 dark:border-blue-900/30 text-xxs font-semibold">
+        <div className="flex items-center gap-2 text-brand-blue">
+          <IoSparklesOutline className="animate-spin-slow text-sm" />
+          <span>RECRUITER EVALUATION PANEL: Switch between a completely clean new account and seeded demo workspace.</span>
+        </div>
+        <div className="flex gap-2">
+          {interviews.length === 0 && quizzes.length === 0 && !fileName ? (
+            <button
+              onClick={handleLoadDemo}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-blue text-white hover:bg-blue-600 transition-all cursor-pointer"
+            >
+              <IoRefreshOutline /> Seed Evaluation Data
+            </button>
+          ) : (
+            <button
+              onClick={handleResetData}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border-primary bg-bg-secondary text-text-secondary hover:text-red-500 transition-all cursor-pointer"
+            >
+              <IoRefreshOutline /> Reset to Fresh Slate
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 1. TOP NAV HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border-primary pb-6 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold font-heading text-slate-900 dark:text-white leading-tight">
-            Welcome Back, {user?.name.split(' ')[0]}
+          <h1 className="text-3xl font-bold font-heading tracking-tight leading-tight text-text-primary">
+            Welcome, {user?.name.split(' ')[0]}
           </h1>
-          <p className="text-xs text-slate-500 dark:text-neutral-400 mt-0.5">
-            Your personal preparation analytics workspace. Calibration status: **Active**.
+          <p className="text-xs text-text-secondary mt-0.5">
+            Path: <strong className="text-brand-blue">{user?.careerGoal || 'Frontend'} Candidate</strong> // Placement Progress: <strong className="text-brand-purple">{overallPlacementProgress}%</strong>
           </p>
         </div>
 
-        {/* Interactive Search & Actions Row */}
         <div className="flex items-center gap-4">
-          
-          {/* Quick Search Input */}
+          {/* Quick Search */}
           <div className="relative">
-            <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs outline-none focus-within:border-brand-blue dark:border-neutral-800 dark:bg-neutral-950">
-              <IoSearchOutline className="text-slate-400 mr-2" size={16} />
+            <div className="flex items-center rounded-xl border border-border-primary bg-bg-secondary px-3.5 py-2 text-xs outline-none focus-within:border-brand-blue">
+              <IoSearchOutline className="text-text-secondary mr-2" size={16} />
               <input
                 type="text"
-                placeholder="Quick Search (Cmd+K)"
+                placeholder="Search resources..."
                 value={searchQuery}
                 onFocus={() => setShowSearchResults(true)}
                 onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none text-slate-700 dark:text-slate-200 w-44"
+                className="bg-transparent outline-none text-text-primary w-44"
               />
             </div>
-            {/* Search Results Drawer */}
             {showSearchResults && (
-              <div className="absolute right-0 top-11 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-premium z-30 dark:border-neutral-800 dark:bg-neutral-900 text-xxs space-y-1">
-                <span className="block text-slate-400 font-bold uppercase tracking-wider mb-2 px-1">PREP RESOURCES</span>
+              <div className="absolute right-0 top-11 w-64 rounded-xl border border-border-primary bg-bg-secondary p-3 shadow-premium z-30 text-xxs space-y-1">
+                <span className="block text-text-secondary font-bold uppercase tracking-wider mb-2 px-1">QUICK LINKS</span>
                 {mockQuickLinks.map((link, idx) => (
                   <Link
                     key={idx}
                     to={link.path}
-                    className="block p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-semibold"
+                    className="block p-2 rounded-lg hover:bg-surface-hover text-text-primary font-semibold"
                   >
                     {link.title}
                   </Link>
@@ -197,84 +256,84 @@ export default function Dashboard() {
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 hover:text-slate-800 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-450 dark:hover:text-white relative"
+              className="rounded-xl border border-border-primary bg-bg-secondary p-2.5 text-text-secondary hover:text-text-primary relative cursor-pointer"
             >
               <IoNotificationsOutline size={18} />
-              {notifications.some(n => !n.read) && (
-                <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 border border-white dark:border-neutral-950 animate-pulse" />
+              {notifications.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
               )}
             </button>
-            {/* Notifications Dropdown Panel */}
             {showNotifications && (
-              <div className="absolute right-0 top-12 w-80 rounded-2xl border border-slate-200 bg-white shadow-premium z-30 dark:border-neutral-800 dark:bg-neutral-900 overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 dark:bg-neutral-950 border-b border-slate-200 dark:border-neutral-850 flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-wide">Notifications</span>
-                  <button onClick={handleMarkAllRead} className="text-[10px] font-semibold text-brand-blue hover:underline">Mark all read</button>
+              <div className="absolute right-0 top-12 w-80 rounded-2xl border border-border-primary bg-bg-secondary shadow-premium z-30 overflow-hidden">
+                <div className="px-4 py-3 bg-bg-primary border-b border-border-primary flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wide">Notifications</span>
+                  {notifications.length > 0 && (
+                    <button onClick={() => setClearedNotifs([1, 2, 3])} className="text-[10px] font-semibold text-brand-blue hover:underline">Clear all</button>
+                  )}
                 </div>
-                <div className="divide-y divide-slate-100 dark:divide-neutral-850 max-h-64 overflow-y-auto">
+                <div className="p-4 text-center">
                   {notifications.length === 0 ? (
-                    <p className="text-center py-6 text-xxs text-slate-400">No new alerts.</p>
+                    <p className="text-xxs text-text-secondary py-4">No notifications yet.</p>
                   ) : (
-                    notifications.map(n => (
-                      <div key={n.id} className={`p-4 flex gap-3 text-xxs transition-colors hover:bg-slate-50 dark:hover:bg-neutral-850/45 ${!n.read ? 'bg-blue-50/10' : ''}`}>
-                        <div className="flex-1">
-                          <p className={`font-semibold text-slate-800 dark:text-slate-250 ${!n.read ? 'text-brand-blue' : ''}`}>{n.text}</p>
-                          <span className="block text-[9px] text-slate-400 mt-1">{n.time}</span>
+                    <div className="divide-y divide-border-primary">
+                      {notifications.map(n => (
+                        <div key={n.id} className="py-2 text-left text-xxs">
+                          <p className="text-text-primary font-medium">{n.text}</p>
+                          <span className="block text-[9px] text-text-secondary mt-1">{n.time}</span>
                         </div>
-                        <button onClick={() => handleClearNotification(n.id)} className="text-slate-400 hover:text-slate-600 shrink-0">
-                          <IoCloseOutline size={14} />
-                        </button>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
             )}
           </div>
-
         </div>
       </div>
 
-      {/* 2. OVERVIEW METRIC CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 2. OVERVIEW METRICS GRID */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: 'Average Mock Score', value: `${latestScores.overall}%`, icon: IoBarChartOutline, color: 'text-brand-blue' },
-          { label: 'Resume ATS Score', value: `${atsScore}%`, icon: IoDocumentTextOutline, color: 'text-brand-purple' },
-          { label: 'Completed Sessions', value: `${interviews.length} Runs`, icon: IoMicOutline, color: 'text-brand-pink' },
-          { label: 'Roadmap Mastery', value: '40%', icon: IoGitBranchOutline, color: 'text-orange-500' }
+          { label: 'Interviews Completed', value: `${interviews.length}`, icon: IoMicOutline, color: 'text-brand-blue' },
+          { label: 'Completed Quizzes', value: `${quizzes.length}`, icon: IoHelpCircleOutline, color: 'text-brand-purple' },
+          { label: 'Interview Score', value: interviews.length > 0 ? `${avgInterviewScore}%` : '0%', icon: IoBarChartOutline, color: 'text-brand-pink' },
+          { label: 'Coding Score', value: interviews.length > 0 || quizzes.length > 0 ? `${avgCodingScore}%` : '0%', icon: IoSparklesOutline, color: 'text-brand-blue' },
+          { label: 'Resume Score', value: fileName ? `${atsScore}%` : 'Not Uploaded', icon: IoDocumentTextOutline, color: 'text-brand-pink' },
+          { label: 'Practice Streak', value: `${streakDays} Days`, icon: IoFlameOutline, color: 'text-orange-500' }
         ].map((card, idx) => {
           const Icon = card.icon;
           return (
-            <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm flex items-center justify-between gap-4">
+            <div key={idx} className="rounded-2xl border border-border-primary bg-bg-secondary p-4 shadow-sm flex items-center justify-between gap-2">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 dark:text-neutral-500 uppercase tracking-wide">{card.label}</span>
-                <span className="block text-2xl font-extrabold font-heading text-slate-900 dark:text-white mt-1">{card.value}</span>
+                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-wide block truncate">{card.label}</span>
+                <span className="block text-base font-extrabold font-heading text-text-primary mt-1">{card.value}</span>
               </div>
-              <div className={`h-10 w-10 rounded-lg bg-slate-50 dark:bg-neutral-950 flex items-center justify-center shrink-0 border border-slate-100 dark:border-neutral-850 ${card.color}`}>
-                <Icon size={20} />
+              <div className="h-8 w-8 rounded-lg bg-bg-primary flex items-center justify-center shrink-0 border border-border-primary text-text-secondary">
+                <Icon className={card.color} size={15} />
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* 3. CHARTS GRID MODULES */}
+      {/* 3. CHARTS GRID */}
       <div className="grid lg:grid-cols-12 gap-8 items-stretch">
-        
-        {/* Radar Competency Chart */}
-        <div className="lg:col-span-6 rounded-2xl border border-slate-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm flex flex-col justify-between">
-          <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white mb-4">
-            Skill Mastery Metrics
-          </h3>
-          <div className="h-64 flex items-center justify-center">
-            {interviews.length === 0 ? (
-              <p className="text-xs text-slate-400">Compile a mock interview report to render radar charts.</p>
+        {/* Radar Skill Mastery Chart */}
+        <div className="lg:col-span-6 rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm flex flex-col justify-between">
+          <h3 className="text-sm font-bold font-heading text-text-primary mb-4">Skill Mastery Metrics</h3>
+          <div className="h-64 flex items-center justify-center relative">
+            {interviews.length === 0 && quizzes.length === 0 ? (
+              <div className="text-center space-y-2 p-6 z-10">
+                <IoBarChartOutline size={32} className="mx-auto text-text-secondary opacity-40" />
+                <h4 className="text-xs font-bold text-text-primary">No Analytics Available Yet</h4>
+                <p className="text-[10px] text-text-secondary max-w-xs mx-auto">Complete your first mock interview or quiz challenge to unlock radar competency diagrams.</p>
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                  <PolarGrid stroke="#e2e8f0" className="dark:stroke-neutral-800" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 550 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8' }} />
+                  <PolarGrid stroke={chartStroke} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: textStroke, fontSize: 10, fontWeight: 550 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: textStroke }} />
                   <Radar
                     name={user?.name}
                     dataKey="score"
@@ -288,20 +347,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Progression Line Chart */}
-        <div className="lg:col-span-6 rounded-2xl border border-slate-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm flex flex-col justify-between">
-          <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white mb-4">
-            Recruiter Session Score Progression
-          </h3>
+        {/* Line Chart Score Progress */}
+        <div className="lg:col-span-6 rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm flex flex-col justify-between">
+          <h3 className="text-sm font-bold font-heading text-text-primary mb-4">Recruiter Calibration Progression</h3>
           <div className="h-64 flex items-center justify-center">
             {interviews.length === 0 ? (
-              <p className="text-xs text-slate-400">Score analytics build dynamically upon session submissions.</p>
+              <div className="text-center space-y-2 p-6 z-10">
+                <IoSparklesOutline size={32} className="mx-auto text-text-secondary opacity-40" />
+                <h4 className="text-xs font-bold text-text-primary">No Progression Data</h4>
+                <p className="text-[10px] text-text-secondary max-w-xs mx-auto font-sans">Mock scores build dynamically upon session submissions.</p>
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-neutral-800" />
-                  <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                  <YAxis domain={[50, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartStroke} />
+                  <XAxis dataKey="name" tick={{ fill: textStroke, fontSize: 10 }} />
+                  <YAxis domain={[50, 100]} tick={{ fill: textStroke, fontSize: 10 }} />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -317,67 +378,82 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 4. DETAILS ROW: UPCOMING GOALS & ACTION ENGINE */}
+      {/* 4. WORKSPACE CONTENT (TODAY'S GOAL & RECENT DATA TABLES) */}
       <div className="grid lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left 2/3: Recent Prep History & Goals */}
+        {/* Left Column (Goals, History, Leaderboard) */}
         <div className="lg:col-span-8 space-y-8">
           
-          {/* Recent History Table */}
-          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden dark:border-neutral-800 dark:bg-neutral-900 shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-neutral-800 flex items-center justify-between">
-              <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white">
-                Recent Mock History
-              </h3>
-              <span className="text-xxs text-slate-400 dark:text-neutral-500">{interviews.length} Runs Completed</span>
+          {/* Today's Goal Checklist */}
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm">
+            <h3 className="text-sm font-bold font-heading text-text-primary mb-4">Today's Practice Calibration</h3>
+            <div className="divide-y divide-border-primary">
+              {goals.map(goal => (
+                <div key={goal.id} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-3">
+                    <span className={`flex items-center justify-center h-4 w-4 rounded-full border ${
+                      goal.completed 
+                        ? 'bg-emerald-500 border-emerald-500 text-white' 
+                        : 'border-border-primary'
+                    }`}>
+                      {goal.completed && <IoCheckmarkCircleSharp size={12} />}
+                    </span>
+                    <span className={`text-xs ${goal.completed ? 'line-through text-text-secondary' : 'font-medium text-text-primary'}`}>
+                      {goal.text}
+                    </span>
+                  </div>
+                  {!goal.completed && (
+                    <Link to={goal.path} className="text-xxs font-bold text-brand-blue hover:underline flex items-center gap-0.5">
+                      Start <IoArrowForwardOutline />
+                    </Link>
+                  )}
+                </div>
+              ))}
             </div>
-            
+          </div>
+
+          {/* Recent Interview History */}
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-border-primary flex justify-between items-center bg-bg-primary/50">
+              <h3 className="text-sm font-bold font-heading text-text-primary">Recent Mock History</h3>
+              <span className="text-[10px] font-bold text-text-secondary uppercase">{interviews.length} Sessions</span>
+            </div>
+
             {interviews.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-xs text-slate-400 dark:text-neutral-550">No prep mock trials completed.</p>
-              </div>
+              <EmptyState 
+                icon={IoMicOutline}
+                title="No interviews completed yet."
+                description="Start your first simulated recruiter mock interview to evaluate your communication pacing and coding diagnostics."
+                primaryCta={{ label: "Start Interview", path: "/interview" }}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-neutral-950 text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-neutral-500 border-b border-slate-200 dark:border-neutral-800">
-                      <th className="px-6 py-3.5">Recruiter Company</th>
+                    <tr className="bg-bg-primary text-[9px] font-bold uppercase tracking-wider text-text-secondary border-b border-border-primary">
+                      <th className="px-6 py-3.5">Company</th>
+                      <th className="px-6 py-3.5">Role</th>
                       <th className="px-6 py-3.5">Difficulty</th>
-                      <th className="px-6 py-3.5">Date</th>
-                      <th className="px-6 py-3.5">Diagnostic Score</th>
-                      <th className="px-6 py-3.5 text-right">Actions</th>
+                      <th className="px-6 py-3.5">Score</th>
+                      <th className="px-6 py-3.5 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800 text-xs">
+                  <tbody className="divide-y divide-border-primary text-xs text-text-secondary">
                     {interviews.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-neutral-850/10 transition-colors">
+                      <tr key={item.id} className="hover:bg-surface-hover/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-text-primary">{item.company}</td>
+                        <td className="px-6 py-4">{item.role}</td>
                         <td className="px-6 py-4">
-                          <span className="font-bold text-slate-900 dark:text-white block">{item.company}</span>
-                          <span className="text-[10px] text-slate-400 dark:text-neutral-500 block mt-0.5">{item.role}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
-                            item.difficulty === 'Hard' 
-                              ? 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400' 
-                              : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-400'
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                            item.difficulty === 'Hard' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'
                           }`}>
                             {item.difficulty}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-500 dark:text-neutral-450">
-                          <div className="flex items-center gap-1.5">
-                            <IoCalendarOutline />
-                            {item.date}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 font-mono font-semibold">
-                          <span className={item.scores.overall >= 88 ? 'text-emerald-600 dark:text-emerald-400' : 'text-brand-blue dark:text-blue-400'}>
-                            {item.scores.overall}%
-                          </span>
-                        </td>
+                        <td className="px-6 py-4 font-mono font-bold text-brand-blue">{item.scores.overall}%</td>
                         <td className="px-6 py-4 text-right">
-                          <button onClick={() => navigate('/interview')} className="text-xxs font-bold text-brand-blue hover:underline">
-                            View Report
+                          <button onClick={() => navigate('/interview')} className="text-xxs font-bold text-brand-blue hover:underline cursor-pointer">
+                            Open Report
                           </button>
                         </td>
                       </tr>
@@ -388,118 +464,135 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Upcoming Placement Goals Scheduler */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm">
-            <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white mb-4">
-              Upcoming Placement Schedule
+          {/* Leaderboard Section */}
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm">
+            <h3 className="text-sm font-bold font-heading text-text-primary mb-4 flex items-center gap-1.5">
+              <IoTrendingUpOutline className="text-brand-purple" /> Leaderboard Rankings
             </h3>
-            
-            <div className="grid sm:grid-cols-2 gap-4">
-              {[
-                { title: "Stripe API Tech Screen", date: "July 12, 2026", details: "Mock compiler checklist focus.", active: true },
-                { title: "Google L4 Web Performance", date: "July 16, 2026", details: "STAR behavioral metrics focus.", active: false }
-              ].map((goal, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 dark:border-neutral-850 dark:bg-neutral-950/20 flex gap-3 text-xs">
-                  <div className="h-8 w-8 rounded bg-white dark:bg-neutral-900 border border-slate-200/50 dark:border-neutral-850 text-brand-blue flex items-center justify-center shrink-0">
-                    <IoCalendarOutline size={16} />
+            {quizzes.length === 0 ? (
+              <div className="text-center py-6 border border-dashed border-border-primary rounded-xl p-4 bg-bg-primary/20 space-y-3">
+                <p className="text-xs text-text-secondary">Participate in quizzes to appear on the leaderboard.</p>
+                <button
+                  onClick={() => navigate('/quiz')}
+                  className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-text-primary text-bg-secondary text-xxs font-bold hover:opacity-90 active:scale-95 transition-all shadow-premium cursor-pointer"
+                >
+                  Take Challenge Quiz
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {leaderboardCandidates.map((cand, idx) => (
+                  <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border text-xs ${
+                    cand.name === 'You' 
+                      ? 'border-brand-purple bg-purple-55/10 dark:bg-purple-950/10 font-bold' 
+                      : 'border-border-primary bg-bg-primary/30'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-text-secondary font-extrabold w-4">{idx + 1}.</span>
+                      <div>
+                        <span className="block text-text-primary">{cand.name}</span>
+                        <span className="block text-[9px] text-text-secondary mt-0.5">{cand.role}</span>
+                      </div>
+                    </div>
+                    <span className="font-mono text-brand-purple font-extrabold">{cand.score}% Accuracy</span>
                   </div>
-                  <div>
-                    <span className="font-bold text-slate-800 dark:text-neutral-250 block">{goal.title}</span>
-                    <span className="text-[10px] text-slate-450 dark:text-neutral-500 block mt-0.5">{goal.date}</span>
-                    <p className="text-[10px] text-slate-400 mt-1">{goal.details}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
 
-        {/* Right 1/3: Quick Actions, AI Recommendations & Activity */}
+        {/* Right Column (Quick Actions, AI Strategy, Locked Achievements) */}
         <div className="lg:col-span-4 space-y-6">
-          
-          {/* Quick Actions Portal */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white">
-              Quick Actions Workspace
-            </h3>
+          {/* Quick Actions */}
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold font-heading text-text-primary">Quick Actions</h3>
             <div className="space-y-2">
-              <button 
-                onClick={() => handleQuickAction('google')}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/20 hover:bg-slate-50 hover:border-slate-350 dark:border-neutral-800 dark:bg-neutral-950/20 dark:hover:bg-neutral-950/60 dark:hover:border-neutral-750 transition-colors text-xs text-left"
+              <Link 
+                to="/interview"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-primary bg-bg-primary/30 hover:bg-surface-hover text-xs text-left cursor-pointer transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <IoPlayOutline className="text-brand-blue" size={16} />
-                  <span className="font-semibold text-slate-800 dark:text-neutral-350">Launch Google mock session</span>
-                </div>
-                <IoArrowForwardOutline className="text-slate-400" />
-              </button>
-              
-              <button 
-                onClick={() => handleQuickAction('resume')}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/20 hover:bg-slate-50 hover:border-slate-350 dark:border-neutral-800 dark:bg-neutral-950/20 dark:hover:bg-neutral-950/60 dark:hover:border-neutral-750 transition-colors text-xs text-left"
+                <span className="font-semibold text-text-primary">Start Recruiter Simulation</span>
+                <IoPlayOutline className="text-brand-blue" />
+              </Link>
+              <Link 
+                to="/resume"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-primary bg-bg-primary/30 hover:bg-surface-hover text-xs text-left cursor-pointer transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <IoDocumentTextOutline className="text-brand-purple" size={16} />
-                  <span className="font-semibold text-slate-800 dark:text-neutral-350">Analyze ATS CV Fit</span>
-                </div>
-                <IoArrowForwardOutline className="text-slate-400" />
-              </button>
-
-              <button 
-                onClick={() => handleQuickAction('roadmap')}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/20 hover:bg-slate-50 hover:border-slate-350 dark:border-neutral-800 dark:bg-neutral-950/20 dark:hover:bg-neutral-950/60 dark:hover:border-neutral-750 transition-colors text-xs text-left"
+                <span className="font-semibold text-text-primary">Analyze ATS CV Fit</span>
+                <IoDocumentTextOutline className="text-brand-pink" />
+              </Link>
+              <Link 
+                to="/roadmap"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-primary bg-bg-primary/30 hover:bg-surface-hover text-xs text-left cursor-pointer transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <IoGitBranchOutline className="text-orange-500" size={16} />
-                  <span className="font-semibold text-slate-800 dark:text-neutral-350">Review Roadmap competency</span>
-                </div>
-                <IoArrowForwardOutline className="text-slate-400" />
-              </button>
+                <span className="font-semibold text-text-primary">View Learning Roadmap</span>
+                <IoGitBranchOutline className="text-brand-purple" />
+              </Link>
+              <Link 
+                to="/quiz"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-primary bg-bg-primary/30 hover:bg-surface-hover text-xs text-left cursor-pointer transition-colors"
+              >
+                <span className="font-semibold text-text-primary">Attempt Prep Quiz</span>
+                <IoHelpCircleOutline className="text-orange-500" />
+              </Link>
             </div>
           </div>
 
-          {/* AI Coach Action Recommendation Panel */}
-          <div className="rounded-2xl border border-blue-200/50 bg-blue-50/15 p-6 dark:border-blue-900/20 dark:bg-blue-950/10 space-y-4">
-            <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white flex items-center gap-1.5">
-              <IoSparklesOutline className="text-brand-purple" /> AI Coach Guidelines
+          {/* AI Coach Card */}
+          <div className="rounded-2xl border border-blue-200/40 bg-blue-50/10 p-6 dark:border-blue-900/10 dark:bg-blue-950/5 space-y-4">
+            <h3 className="text-sm font-bold font-heading text-text-primary flex items-center gap-1.5">
+              <IoSparklesOutline className="text-brand-blue" /> AI Coach Strategy
             </h3>
-            <div className="space-y-3 text-xs leading-relaxed text-slate-600 dark:text-neutral-400">
-              {[
-                "Merge Vitest keyword suggestions into your Vercel experience card.",
-                "Review useEffect timeouts cleanup structures to clear roadmaps.",
-                "Maintain STAR methodology pacing under 130 words per minute."
-              ].map((rec, i) => (
-                <div key={i} className="flex gap-2">
-                  <IoCheckmarkCircleSharp className="text-brand-blue shrink-0 mt-0.5" size={14} />
-                  <span>{rec}</span>
-                </div>
-              ))}
+            <div className="space-y-3 text-xxs text-text-secondary leading-relaxed">
+              <div className="flex gap-2">
+                <IoCheckmarkCircleSharp className="text-brand-blue shrink-0 mt-0.5" size={12} />
+                <span>Upload your resume to evaluate original text vs. AI recommendations.</span>
+              </div>
+              <div className="flex gap-2">
+                <IoCheckmarkCircleSharp className="text-brand-blue shrink-0 mt-0.5" size={12} />
+                <span>Start your first interview with custom JD keywords to train diagnostics.</span>
+              </div>
+              <div className="flex gap-2">
+                <IoCheckmarkCircleSharp className="text-brand-blue shrink-0 mt-0.5" size={12} />
+                <span>Maintain your streak to build long-term placement compatibility scores.</span>
+              </div>
             </div>
           </div>
 
-          {/* Recent Activity Stream Feed */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold font-heading text-slate-900 dark:text-white">
-              Recent Prep Activity
+          {/* Achievements (Locked for new users!) */}
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold font-heading text-text-primary flex items-center gap-1.5">
+              <IoRibbonOutline className="text-brand-purple" /> Calibrated Achievements
             </h3>
-            <div className="space-y-4 text-xxs relative pl-4 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-[1px] before:bg-slate-200 dark:before:bg-neutral-800">
-              {[
-                { title: "Completed Mock Google L4", date: "2026-07-09", icon: "int" },
-                { title: "Applied Vitest ATS optimization card", date: "2026-07-08", icon: "res" },
-                { title: "Unlocked Roadmap Node: Concurrency", date: "2026-07-07", icon: "path" }
-              ].map((act, i) => (
-                <div key={i} className="relative space-y-0.5">
-                  <span className="absolute -left-[19px] top-1.5 h-2 w-2 rounded-full bg-slate-350 dark:bg-neutral-700 border border-white dark:border-neutral-900" />
-                  <span className="block font-semibold text-slate-800 dark:text-neutral-350">{act.title}</span>
-                  <span className="block text-slate-400 dark:text-neutral-500">{act.date}</span>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {achievements.map(ach => {
+                const Icon = ach.icon;
+                const percent = Math.min((ach.current / ach.target) * 100, 100);
+                const isLocked = ach.current < ach.target;
+                
+                return (
+                  <div key={ach.id} className="p-3 border border-border-primary bg-bg-primary/45 rounded-xl text-xxs space-y-2 relative overflow-hidden">
+                    <div className="flex justify-between items-center relative z-10">
+                      <span className="font-bold text-text-primary flex items-center gap-1.5">
+                        <Icon className="text-text-secondary shrink-0" size={13} />
+                        {isLocked && <IoLockClosedOutline className="text-text-secondary shrink-0" size={11} />}
+                        {ach.title}
+                      </span>
+                      <span className="font-bold text-text-secondary">{ach.current} / {ach.target}</span>
+                    </div>
+                    <p className="text-[10px] text-text-secondary leading-normal relative z-10">{ach.desc}</p>
+                    <div className="w-full bg-border-primary h-1 rounded-full overflow-hidden relative z-10">
+                      <div className="bg-brand-purple h-full transition-all duration-300" style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
         </div>
-
       </div>
 
     </div>
